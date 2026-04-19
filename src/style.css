@@ -34,6 +34,22 @@ body {
   margin: 1rem auto 2rem;
 }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0.5rem;
+  background: #04111f;
+  color: #ffffff;
+  border: 2px solid var(--accent);
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  z-index: 99;
+}
+
+.skip-link:focus-visible {
+  left: 1rem;
+}
+
 .lab {
   display: grid;
   gap: 1rem;
@@ -109,6 +125,12 @@ button:hover {
   border-color: var(--accent);
 }
 
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #ffd700;
+  outline-offset: 2px;
+}
+
 input {
   width: 100%;
   margin-top: 0.35rem;
@@ -181,6 +203,12 @@ canvas {
   color: #f7c66b;
 }
 
+.assistive {
+  margin: 0.35rem 0 0;
+  color: #adc0e7;
+  font-size: 0.84rem;
+}
+
 .decode {
   font: 500 0.85rem var(--mono);
   color: #ccd9f6;
@@ -190,6 +218,18 @@ table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.93rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+caption {
+  text-align: left;
+  color: #c5d2ee;
+  margin-bottom: 0.45rem;
+  font: 500 0.86rem var(--mono);
 }
 
 th,
@@ -234,6 +274,15 @@ th {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 @media (max-width: 720px) {
   #app {
     width: calc(100% - 1rem);
@@ -244,5 +293,20 @@ th {
   .hero {
     border-radius: 0.8rem;
     padding: 0.8rem;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  th,
+  td {
+    padding: 0.5rem;
+    min-width: 140px;
   }
 }

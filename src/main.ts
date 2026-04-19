@@ -16,6 +16,7 @@ if (!app) {
 }
 
 app.innerHTML = `
+  <a class="skip-link" href="#exhibit1">Skip to exhibits</a>
   <main class="lab">
     <header class="hero">
       <p class="eyebrow">crypto-lab-ntru-classic</p>
@@ -27,18 +28,18 @@ app.innerHTML = `
       <h2>Exhibit 1: Probabilistic Key Generation</h2>
       <p>Key generation retries until f is invertible mod 3 and mod 2048. This probabilistic loop is expected behavior.</p>
       <div class="controls">
-        <button id="generate-keypair" type="button">Generate Keypair</button>
-        <span id="keygen-summary" class="status neutral">No keypair generated yet.</span>
+        <button id="generate-keypair" type="button" aria-controls="keygen-log ring-public ring-private">Generate Keypair</button>
+        <span id="keygen-summary" class="status neutral" role="status" aria-live="polite">No keypair generated yet.</span>
       </div>
-      <pre id="keygen-log" class="log"></pre>
+      <pre id="keygen-log" class="log" aria-live="polite"></pre>
       <div class="ring-grid">
         <figure>
           <figcaption>Public key h (shared, gold)</figcaption>
-          <canvas id="ring-public" width="330" height="330"></canvas>
+          <canvas id="ring-public" width="330" height="330" role="img" aria-label="Public key ring visualization"></canvas>
         </figure>
         <figure>
           <figcaption>Private key f (red, censored band)</figcaption>
-          <canvas id="ring-private" width="330" height="330"></canvas>
+          <canvas id="ring-private" width="330" height="330" role="img" aria-label="Private key ring visualization"></canvas>
         </figure>
       </div>
     </section>
@@ -46,32 +47,33 @@ app.innerHTML = `
     <section class="card" id="exhibit2">
       <h2>Exhibit 2: Encrypt and Decrypt</h2>
       <label for="message-input">Message</label>
-      <input id="message-input" value="Hello, NTRU 1996!" />
+      <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
+      <p id="message-help" class="assistive">Maximum 73 bytes for ees443ep1 encoding in this demo.</p>
       <div class="controls">
-        <button id="encrypt-message" type="button">Encrypt</button>
-        <button id="decrypt-message" type="button">Decrypt</button>
+        <button id="encrypt-message" type="button" aria-controls="ring-message ring-blind ring-cipher">Encrypt</button>
+        <button id="decrypt-message" type="button" aria-controls="ring-recovered">Decrypt</button>
       </div>
-      <p id="enc-status" class="status neutral">Ready.</p>
-      <p id="dec-status" class="status neutral">Decryption pending.</p>
+      <p id="enc-status" class="status neutral" role="status" aria-live="polite">Ready.</p>
+      <p id="dec-status" class="status neutral" role="status" aria-live="polite">Decryption pending.</p>
       <div class="ring-grid">
         <figure>
           <figcaption>Message m (ternary ring)</figcaption>
-          <canvas id="ring-message" width="330" height="330"></canvas>
+          <canvas id="ring-message" width="330" height="330" role="img" aria-label="Message polynomial ring"></canvas>
         </figure>
         <figure>
           <figcaption>Blinding r (ternary ring)</figcaption>
-          <canvas id="ring-blind" width="330" height="330"></canvas>
+          <canvas id="ring-blind" width="330" height="330" role="img" aria-label="Blinding polynomial ring"></canvas>
         </figure>
         <figure>
           <figcaption>Ciphertext e (mod q ring)</figcaption>
-          <canvas id="ring-cipher" width="330" height="330"></canvas>
+          <canvas id="ring-cipher" width="330" height="330" role="img" aria-label="Ciphertext polynomial ring"></canvas>
         </figure>
         <figure>
           <figcaption>Recovered m' (ternary ring)</figcaption>
-          <canvas id="ring-recovered" width="330" height="330"></canvas>
+          <canvas id="ring-recovered" width="330" height="330" role="img" aria-label="Recovered message polynomial ring"></canvas>
         </figure>
       </div>
-      <p id="decode-output" class="decode"></p>
+      <p id="decode-output" class="decode" role="status" aria-live="polite"></p>
       <p class="warning">Decryption failures are possible (rare, about 2^-80 for ees443ep1). This demo reports mismatches explicitly.</p>
     </section>
 
@@ -81,15 +83,17 @@ app.innerHTML = `
       <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. For ees443ep1, attacks are estimated near 2^128 work.</p>
       <div class="controls">
         <button id="lll-step" type="button">Apply LLL Step</button>
-        <span id="lll-state" class="status neutral"></span>
+        <span id="lll-state" class="status neutral" role="status" aria-live="polite"></span>
       </div>
-      <canvas id="lattice-canvas" width="520" height="360"></canvas>
+      <canvas id="lattice-canvas" width="520" height="360" role="img" aria-label="2D toy lattice visualization"></canvas>
     </section>
 
     <section class="card" id="exhibit4">
       <h2>Exhibit 4: NTRU Classic vs Kyber</h2>
+      <div class="table-wrap">
       <table>
-        <thead><tr><th>Property</th><th>NTRU Classic (1996)</th><th>ML-KEM-768 (2024)</th></tr></thead>
+        <caption>Comparison of NTRU Classic and ML-KEM-768</caption>
+        <thead><tr><th scope="col">Property</th><th scope="col">NTRU Classic (1996)</th><th scope="col">ML-KEM-768 (2024)</th></tr></thead>
         <tbody>
           <tr><td>Designer(s)</td><td>Hoffstein, Pipher, Silverman</td><td>Avanzi, Bos, Ducas, Kiltz et al.</td></tr>
           <tr><td>Ring</td><td>Z[X]/(X^N - 1)</td><td>Z_q[X]/(X^n + 1), n=256</td></tr>
@@ -102,6 +106,7 @@ app.innerHTML = `
           <tr><td>Patent status</td><td>Expired 2017</td><td>Patent-free</td></tr>
         </tbody>
       </table>
+      </div>
       <p class="lineage">NTRU (1996) -> Ring-LWE (2010) -> Kyber / ML-KEM (2024)</p>
     </section>
 
@@ -176,6 +181,9 @@ const ringCipherEl = ringCipher;
 const ringRecoveredEl = ringRecovered;
 const lllStateText = lllStateEl;
 const latticeCanvasEl = latticeCanvas;
+const maxBytes = Math.floor(NTRU_PARAMS.N / 6);
+
+messageInputEl.maxLength = maxBytes;
 
 type RingMode = 'ternary' | 'cipher' | 'public' | 'private';
 
@@ -307,6 +315,10 @@ document
     }
 
     const bytes = encoder.encode(messageInputEl.value);
+    if (bytes.length > maxBytes) {
+      setStatus(encStatusEl, `Message is too long for N=${NTRU_PARAMS.N}. Max ${maxBytes} bytes.`, 'warn');
+      return;
+    }
     try {
       messagePoly = encodeMessage(bytes, NTRU_PARAMS.N);
     } catch (error) {
