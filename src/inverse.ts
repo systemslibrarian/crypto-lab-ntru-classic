@@ -27,19 +27,6 @@ function modInverseInt(a: number, p: number): number | null {
   return null;
 }
 
-function polyAddMod(a: number[], b: number[], p: number): number[] {
-  const len = Math.max(a.length, b.length);
-  const out = new Array<number>(len).fill(0);
-
-  for (let i = 0; i < len; i += 1) {
-    const av = i < a.length ? a[i] : 0;
-    const bv = i < b.length ? b[i] : 0;
-    out[i] = modPos(av + bv, p);
-  }
-
-  return trimPoly(out);
-}
-
 function polySubMod(a: number[], b: number[], p: number): number[] {
   const len = Math.max(a.length, b.length);
   const out = new Array<number>(len).fill(0);
