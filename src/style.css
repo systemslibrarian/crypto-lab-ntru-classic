@@ -125,6 +125,13 @@ button:hover {
   border-color: var(--accent);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  border-color: #4a5b74;
+}
+
 button:focus-visible,
 input:focus-visible {
   outline: 3px solid #ffd700;

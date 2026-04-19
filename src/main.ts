@@ -1,5 +1,5 @@
 import './style.css';
-import { NTRU_PARAMS, centerReduce, type Polynomial } from './polynomial';
+import { NTRU_PARAMS, modPos, type Polynomial } from './polynomial';
 import {
   decodeMessage,
   decrypt,
@@ -52,7 +52,8 @@ app.innerHTML = `
       <p id="message-meta" class="assistive" role="status" aria-live="polite"></p>
       <div class="controls">
         <button id="encrypt-message" type="button" aria-controls="ring-message ring-blind ring-cipher">Encrypt</button>
-        <button id="decrypt-message" type="button" aria-controls="ring-recovered">Decrypt</button>
+        <button id="decrypt-message" type="button" aria-controls="ring-recovered" disabled>Decrypt</button>
+        <button id="tamper-ciphertext" type="button" aria-controls="ring-cipher ring-recovered" disabled>Tamper Ciphertext</button>
       </div>
       <p id="enc-status" class="status neutral" role="status" aria-live="polite">Ready.</p>
       <p id="dec-status" class="status neutral" role="status" aria-live="polite">Decryption pending.</p>
@@ -134,6 +135,10 @@ const decoder = new TextDecoder();
 
 const keyLog = document.querySelector<HTMLPreElement>('#keygen-log');
 const keySummary = document.querySelector<HTMLSpanElement>('#keygen-summary');
+const generateButton = document.querySelector<HTMLButtonElement>('#generate-keypair');
+const encryptButton = document.querySelector<HTMLButtonElement>('#encrypt-message');
+const decryptButton = document.querySelector<HTMLButtonElement>('#decrypt-message');
+const tamperButton = document.querySelector<HTMLButtonElement>('#tamper-ciphertext');
 const encStatus = document.querySelector<HTMLParagraphElement>('#enc-status');
 const decStatus = document.querySelector<HTMLParagraphElement>('#dec-status');
 const decodeOutput = document.querySelector<HTMLParagraphElement>('#decode-output');
@@ -153,6 +158,10 @@ const latticeCanvas = document.querySelector<HTMLCanvasElement>('#lattice-canvas
 if (
   !keyLog ||
   !keySummary ||
+  !generateButton ||
+  !encryptButton ||
+  !decryptButton ||
+  !tamperButton ||
   !encStatus ||
   !decStatus ||
   !decodeOutput ||
@@ -172,6 +181,10 @@ if (
 
 const keyLogEl = keyLog;
 const keySummaryEl = keySummary;
+const generateButtonEl = generateButton;
+const encryptButtonEl = encryptButton;
+const decryptButtonEl = decryptButton;
+const tamperButtonEl = tamperButton;
 const encStatusEl = encStatus;
 const decStatusEl = decStatus;
 const decodeOutputEl = decodeOutput;
@@ -233,13 +246,13 @@ function drawRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMode): 
     if (mode === 'ternary') {
       color = coeff === 1 ? '#00d4ff' : coeff === -1 ? '#ff00aa' : '#3e414b';
     } else if (mode === 'public') {
-      const centered = centerReduce(Int32Array.of(coeff), NTRU_PARAMS.q)[0];
+      const centered = centerCoeff(coeff, NTRU_PARAMS.q);
       const intensity = Math.min(100, Math.abs(centered) / 7);
       color = `hsl(47 100% ${40 + intensity * 0.35}%)`;
     } else if (mode === 'private') {
       color = coeff === 1 || coeff === -1 ? '#ff3366' : '#3e414b';
     } else {
-      const centered = centerReduce(Int32Array.of(coeff), NTRU_PARAMS.q)[0];
+      const centered = centerCoeff(coeff, NTRU_PARAMS.q);
       const base = centered >= 0 ? 190 : 320;
       const lum = 34 + Math.min(40, Math.abs(centered) / 30);
       color = `hsl(${base} 93% ${lum}%)`;
@@ -261,6 +274,12 @@ function drawRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMode): 
     ctx.textAlign = 'center';
     ctx.fillText('private key hidden', cx, cy + 5);
   }
+}
+
+function centerCoeff(value: number, m: number): number {
+  const half = m / 2;
+  const reduced = modPos(value, m);
+  return reduced > half ? reduced - m : reduced;
 }
 
 function countCoefficients(poly: Polynomial): string {
@@ -294,6 +313,12 @@ function setStatus(el: HTMLElement, text: string, kind: 'neutral' | 'ok' | 'warn
   }
 }
 
+function setButtonBusy(button: HTMLButtonElement, busy: boolean, idleLabel: string): void {
+  button.disabled = busy;
+  button.setAttribute('aria-busy', String(busy));
+  button.textContent = busy ? `${idleLabel}...` : idleLabel;
+}
+
 function updateMessageMeta(bytesLength: number): void {
   const remaining = maxBytes - bytesLength;
   messageMetaEl.textContent = `${bytesLength}/${maxBytes} bytes used (${remaining} remaining).`;
@@ -304,9 +329,8 @@ let messagePoly: Polynomial | null = null;
 let ciphertext: Polynomial | null = null;
 let originalLength = 0;
 
-document
-  .querySelector<HTMLButtonElement>('#generate-keypair')
-  ?.addEventListener('click', () => {
+generateButtonEl.addEventListener('click', () => {
+    setButtonBusy(generateButtonEl, true, 'Generate Keypair');
     const lines: string[] = [];
     let sawFailure = false;
 
@@ -329,14 +353,19 @@ document
       `Keypair ready in ${keyPair.generationAttempts} attempt(s).`,
       'ok',
     );
+    setStatus(decStatusEl, 'Ciphertext invalidated after key regeneration. Re-encrypt to continue.', 'neutral');
+    decryptButtonEl.disabled = true;
+    tamperButtonEl.disabled = true;
+    ciphertext = null;
+    messagePoly = null;
+    decodeOutputEl.textContent = '';
 
     drawRing(ringPublicEl, keyPair.publicKey, 'public');
     drawRing(ringPrivateEl, keyPair.privateKey.f, 'private');
+    setButtonBusy(generateButtonEl, false, 'Generate Keypair');
   });
 
-document
-  .querySelector<HTMLButtonElement>('#encrypt-message')
-  ?.addEventListener('click', () => {
+encryptButtonEl.addEventListener('click', () => {
     if (!keyPair) {
       setStatus(encStatusEl, 'Generate a keypair first.', 'warn');
       return;
@@ -371,12 +400,12 @@ document
       'ok',
     );
     setStatus(decStatusEl, 'Ciphertext ready. Click decrypt.', 'neutral');
+    decryptButtonEl.disabled = false;
+    tamperButtonEl.disabled = false;
     decodeOutputEl.textContent = `Message coefficient profile: ${countCoefficients(messagePoly)}`;
   });
 
-document
-  .querySelector<HTMLButtonElement>('#decrypt-message')
-  ?.addEventListener('click', () => {
+decryptButtonEl.addEventListener('click', () => {
     if (!keyPair || !ciphertext || !messagePoly) {
       setStatus(decStatusEl, 'Encrypt first so there is ciphertext to decrypt.', 'warn');
       return;
@@ -399,6 +428,31 @@ document
       decodeOutputEl.textContent = 'Warning: rare decryption failure or tampering event observed.';
     }
   });
+
+tamperButtonEl.addEventListener('click', () => {
+  if (!keyPair || !ciphertext || !messagePoly) {
+    setStatus(decStatusEl, 'Encrypt first so ciphertext exists before tampering.', 'warn');
+    return;
+  }
+
+  const tampered = new Int32Array(ciphertext);
+  tampered[0] = modPos(tampered[0] + 777, NTRU_PARAMS.q);
+  tampered[5] = modPos(tampered[5] + 999, NTRU_PARAMS.q);
+  ciphertext = tampered;
+
+  drawRing(ringCipherEl, ciphertext, 'cipher');
+
+  const recoveredTampered = decrypt(ciphertext, keyPair.privateKey);
+  drawRing(ringRecoveredEl, recoveredTampered, 'ternary');
+  const diagnosis = diagnoseDecryption(messagePoly, recoveredTampered);
+
+  setStatus(
+    decStatusEl,
+    `Tampering demo: ${diagnosis.differingCoefficients}/${diagnosis.totalCoefficients} coefficients now differ.`,
+    'warn',
+  );
+  decodeOutputEl.textContent = 'This demonstrates ciphertext integrity sensitivity in lattice PKE.';
+});
 
 interface LatticeState {
   label: string;
