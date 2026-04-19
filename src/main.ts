@@ -49,6 +49,7 @@ app.innerHTML = `
       <label for="message-input">Message</label>
       <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
       <p id="message-help" class="assistive">Maximum 73 bytes for ees443ep1 encoding in this demo.</p>
+      <p id="message-meta" class="assistive" role="status" aria-live="polite"></p>
       <div class="controls">
         <button id="encrypt-message" type="button" aria-controls="ring-message ring-blind ring-cipher">Encrypt</button>
         <button id="decrypt-message" type="button" aria-controls="ring-recovered">Decrypt</button>
@@ -137,6 +138,7 @@ const encStatus = document.querySelector<HTMLParagraphElement>('#enc-status');
 const decStatus = document.querySelector<HTMLParagraphElement>('#dec-status');
 const decodeOutput = document.querySelector<HTMLParagraphElement>('#decode-output');
 const messageInput = document.querySelector<HTMLInputElement>('#message-input');
+const messageMeta = document.querySelector<HTMLParagraphElement>('#message-meta');
 
 const ringPublic = document.querySelector<HTMLCanvasElement>('#ring-public');
 const ringPrivate = document.querySelector<HTMLCanvasElement>('#ring-private');
@@ -155,6 +157,7 @@ if (
   !decStatus ||
   !decodeOutput ||
   !messageInput ||
+  !messageMeta ||
   !ringPublic ||
   !ringPrivate ||
   !ringMessage ||
@@ -173,6 +176,7 @@ const encStatusEl = encStatus;
 const decStatusEl = decStatus;
 const decodeOutputEl = decodeOutput;
 const messageInputEl = messageInput;
+const messageMetaEl = messageMeta;
 const ringPublicEl = ringPublic;
 const ringPrivateEl = ringPrivate;
 const ringMessageEl = ringMessage;
@@ -184,6 +188,17 @@ const latticeCanvasEl = latticeCanvas;
 const maxBytes = Math.floor(NTRU_PARAMS.N / 6);
 
 messageInputEl.maxLength = maxBytes;
+updateMessageMeta(encoder.encode(messageInputEl.value).length);
+
+messageInputEl.addEventListener('input', () => {
+  const bytes = encoder.encode(messageInputEl.value);
+  updateMessageMeta(bytes.length);
+  if (bytes.length > maxBytes) {
+    messageInputEl.setAttribute('aria-invalid', 'true');
+  } else {
+    messageInputEl.removeAttribute('aria-invalid');
+  }
+});
 
 type RingMode = 'ternary' | 'cipher' | 'public' | 'private';
 
@@ -269,6 +284,19 @@ function countCoefficients(poly: Polynomial): string {
 function setStatus(el: HTMLElement, text: string, kind: 'neutral' | 'ok' | 'warn'): void {
   el.textContent = text;
   el.className = `status ${kind}`;
+
+  if (kind === 'warn') {
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'assertive');
+  } else {
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+  }
+}
+
+function updateMessageMeta(bytesLength: number): void {
+  const remaining = maxBytes - bytesLength;
+  messageMetaEl.textContent = `${bytesLength}/${maxBytes} bytes used (${remaining} remaining).`;
 }
 
 let keyPair: NTRUKeyPair | null = null;
@@ -315,10 +343,13 @@ document
     }
 
     const bytes = encoder.encode(messageInputEl.value);
+    updateMessageMeta(bytes.length);
     if (bytes.length > maxBytes) {
+      messageInputEl.setAttribute('aria-invalid', 'true');
       setStatus(encStatusEl, `Message is too long for N=${NTRU_PARAMS.N}. Max ${maxBytes} bytes.`, 'warn');
       return;
     }
+    messageInputEl.removeAttribute('aria-invalid');
     try {
       messagePoly = encodeMessage(bytes, NTRU_PARAMS.N);
     } catch (error) {

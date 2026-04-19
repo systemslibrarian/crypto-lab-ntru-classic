@@ -205,8 +205,13 @@ canvas {
 
 .assistive {
   margin: 0.35rem 0 0;
-  color: #adc0e7;
+  color: #c2d2ef;
   font-size: 0.84rem;
+}
+
+input[aria-invalid='true'] {
+  border-color: #ff7f7f;
+  box-shadow: 0 0 0 2px rgb(255 127 127 / 25%);
 }
 
 .decode {
