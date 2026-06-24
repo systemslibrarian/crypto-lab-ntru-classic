@@ -23,6 +23,26 @@ The demo explicitly shows probabilistic key generation retries when `f` is not i
 
 `f · e ≡ p·r·g + f·m (mod q)`
 
+## Exhibits
+
+1. **Probabilistic key generation** — watch the retry loop discard non-invertible `f`, with ring visualizations of the public key `h` and (censored) private key `f`.
+2. **Encrypt and decrypt** — encode a string to a ternary polynomial, encrypt, decrypt, and tamper. A collapsible **decryption walkthrough** shows the algebra step by step with live values, including a verified `f · e ≡ p·r·g + f·m (mod q)` identity check and the per-ciphertext decryption margin before wraparound. Equations are typeset with KaTeX, and hovering any ring reveals individual coefficients.
+3. **The lattice perspective** — a live, honest **Gauss–Lagrange reduction** of a 2D lattice (the exact analogue of LLL). Step through it or auto-run it; the basis vectors shrink onto a fixed lattice while the determinant stays invariant, and `b₁` converges to a shortest vector. "New Basis" generates a fresh random bad basis.
+4. **NTRU Classic vs ML-KEM-768** — a comparison table.
+5. **Historical impact and patent story** — a timeline.
+
+## Development
+
+```sh
+npm install      # install dependencies
+npm run dev      # local dev server
+npm test         # Vitest unit + DOM smoke tests (46 tests)
+npm run verify   # 12 project verification gates
+npm run build    # type-check and production build
+```
+
+Correctness is guarded by a Vitest suite (polynomial arithmetic, inversion, encode/decode, encrypt/decrypt round-trips, the decryption identity, and Gauss reduction with a 200-case fuzz) plus a headless DOM smoke test that drives the full generate → encrypt → decrypt flow. CI runs the tests and verification gates before every GitHub Pages deploy.
+
 ## When to Use It
 
 Use this lab when you want to:

@@ -1,4 +1,6 @@
 import './style.css';
+import 'katex/dist/katex.min.css';
+import katex from 'katex';
 import { NTRU_PARAMS, modPos, type Polynomial } from './polynomial';
 import {
   decodeMessage,
@@ -6,13 +8,36 @@ import {
   diagnoseDecryption,
   encodeMessage,
   encrypt,
+  explainDecryption,
   generateKeyPair,
   type NTRUKeyPair,
 } from './ntru';
+import {
+  type ReductionStep,
+  type Vec2,
+  gaussReduce,
+  norm,
+  randomBadBasis,
+} from './lattice';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
   throw new Error('Missing #app root');
+}
+
+/** Render a LaTeX string to an HTML string (inline mode), never throwing. */
+function tex(latex: string, displayMode = false): string {
+  return katex.renderToString(latex, { throwOnError: false, displayMode });
+}
+
+/** Typeset every [data-tex] (inline) and [data-tex-display] (block) element. */
+function renderMathIn(root: ParentNode): void {
+  root.querySelectorAll<HTMLElement>('[data-tex]').forEach((el) => {
+    el.innerHTML = tex(el.dataset.tex ?? '');
+  });
+  root.querySelectorAll<HTMLElement>('[data-tex-display]').forEach((el) => {
+    el.innerHTML = tex(el.dataset.texDisplay ?? '', true);
+  });
 }
 
 app.innerHTML = `
@@ -42,10 +67,24 @@ app.innerHTML = `
           <canvas id="ring-private" width="330" height="330" role="img" aria-label="Private key ring visualization"></canvas>
         </figure>
       </div>
+      <p class="ring-legend" aria-hidden="true">
+        <span class="swatch" style="background:#00d4ff"></span> +1
+        <span class="swatch" style="background:#ff00aa"></span> −1
+        <span class="swatch" style="background:#3e414b"></span> 0
+        <span class="swatch" style="background:linear-gradient(90deg,#caa000,#fff0a8)"></span> mod-q magnitude (gold)
+      </p>
+      <p id="inspect-1" class="ring-inspect" role="status" aria-live="polite">Hover or move over a ring to inspect individual coefficients.</p>
     </section>
 
     <section class="card" id="exhibit2">
       <h2>Exhibit 2: Encrypt and Decrypt</h2>
+      <div class="scheme-eqs">
+        <div class="math-display" data-tex-display="h = p \\cdot F_q \\cdot g \\pmod q"></div>
+        <div class="math-display" data-tex-display="e = r \\cdot h + m \\pmod q"></div>
+        <div class="math-display" data-tex-display="f \\cdot e \\equiv p\\,r\\,g + f\\,m \\pmod q"></div>
+        <div class="math-display" data-tex-display="m \\equiv F_p \\cdot (f \\cdot e \\bmod p) \\pmod p"></div>
+      </div>
+      <p class="assistive">The third line is the identity that makes decryption work: reduced mod p the p·r·g term vanishes, leaving f·m, which F<sub>p</sub> inverts back to m.</p>
       <label for="message-input">Message</label>
       <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
       <p id="message-help" class="assistive">Maximum 73 bytes for ees443ep1 encoding in this demo.</p>
@@ -75,19 +114,41 @@ app.innerHTML = `
           <canvas id="ring-recovered" width="330" height="330" role="img" aria-label="Recovered message polynomial ring"></canvas>
         </figure>
       </div>
+      <p class="ring-legend" aria-hidden="true">
+        <span class="swatch" style="background:#00d4ff"></span> +1
+        <span class="swatch" style="background:#ff00aa"></span> −1
+        <span class="swatch" style="background:#3e414b"></span> 0
+        <span class="swatch" style="background:linear-gradient(90deg,#1f8fff,#ff5cc8)"></span> centered mod-q (cipher)
+      </p>
+      <p id="inspect-2" class="ring-inspect" role="status" aria-live="polite">Hover or move over a ring to inspect individual coefficients.</p>
       <p id="decode-output" class="decode" role="status" aria-live="polite"></p>
+      <details id="decrypt-walkthrough" class="walkthrough">
+        <summary>Show the decryption walkthrough (the algebra, step by step)</summary>
+        <div id="walkthrough-body" class="walkthrough-body">
+          <p class="assistive">Decrypt a message to populate this walkthrough with live values.</p>
+        </div>
+      </details>
       <p class="warning">Decryption failures are possible (rare, about 2^-80 for ees443ep1). This demo reports mismatches explicitly.</p>
     </section>
 
     <section class="card" id="exhibit3">
       <h2>Exhibit 3: The Lattice Perspective</h2>
-      <p>The private key maps to a short vector in a 2N-dimensional lattice built from h. Breaking NTRU means finding that short vector.</p>
+      <p>The private key maps to a short vector in a 2N-dimensional lattice built from h. Breaking NTRU means finding that short vector. Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step.</p>
+      <p>Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
       <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. For ees443ep1, attacks are estimated near 2^128 work.</p>
       <div class="controls">
-        <button id="lll-step" type="button">Apply LLL Step</button>
+        <button id="lll-step" type="button" aria-controls="lattice-canvas lll-readout">Apply Reduction Step</button>
+        <button id="lll-auto" type="button" aria-controls="lattice-canvas lll-readout">Auto-Reduce</button>
+        <button id="lll-new" type="button" aria-controls="lattice-canvas lll-readout">New Basis</button>
         <span id="lll-state" class="status neutral" role="status" aria-live="polite"></span>
       </div>
-      <canvas id="lattice-canvas" width="520" height="360" role="img" aria-label="2D toy lattice visualization"></canvas>
+      <div class="ring-grid lattice-layout">
+        <figure>
+          <figcaption>2D lattice with current basis (b₁ cyan, b₂ magenta, shortest highlighted)</figcaption>
+          <canvas id="lattice-canvas" width="520" height="360" role="img" aria-label="2D toy lattice visualization"></canvas>
+        </figure>
+        <pre id="lll-readout" class="log lattice-readout" role="status" aria-live="polite"></pre>
+      </div>
     </section>
 
     <section class="card" id="exhibit4">
@@ -130,6 +191,8 @@ app.innerHTML = `
   </main>
 `;
 
+renderMathIn(app);
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -153,6 +216,10 @@ const ringCipher = document.querySelector<HTMLCanvasElement>('#ring-cipher');
 const ringRecovered = document.querySelector<HTMLCanvasElement>('#ring-recovered');
 
 const lllStateEl = document.querySelector<HTMLSpanElement>('#lll-state');
+const lllReadoutEl = document.querySelector<HTMLPreElement>('#lll-readout');
+const lllStepBtn = document.querySelector<HTMLButtonElement>('#lll-step');
+const lllAutoBtn = document.querySelector<HTMLButtonElement>('#lll-auto');
+const lllNewBtn = document.querySelector<HTMLButtonElement>('#lll-new');
 const latticeCanvas = document.querySelector<HTMLCanvasElement>('#lattice-canvas');
 
 if (
@@ -174,6 +241,10 @@ if (
   !ringCipher ||
   !ringRecovered ||
   !lllStateEl ||
+  !lllReadoutEl ||
+  !lllStepBtn ||
+  !lllAutoBtn ||
+  !lllNewBtn ||
   !latticeCanvas
 ) {
   throw new Error('UI initialization failed');
@@ -197,6 +268,10 @@ const ringBlindEl = ringBlind;
 const ringCipherEl = ringCipher;
 const ringRecoveredEl = ringRecovered;
 const lllStateText = lllStateEl;
+const lllReadout = lllReadoutEl;
+const lllStep = lllStepBtn;
+const lllAuto = lllAutoBtn;
+const lllNew = lllNewBtn;
 const latticeCanvasEl = latticeCanvas;
 const maxBytes = Math.floor(NTRU_PARAMS.N / 6);
 
@@ -215,6 +290,14 @@ messageInputEl.addEventListener('input', () => {
 
 type RingMode = 'ternary' | 'cipher' | 'public' | 'private';
 
+interface RingRecord {
+  poly: Polynomial;
+  mode: RingMode;
+  label: string;
+}
+
+const ringRegistry = new Map<HTMLCanvasElement, RingRecord>();
+
 function clearCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -224,7 +307,10 @@ function clearCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return ctx;
 }
 
-function drawRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMode): void {
+function drawRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMode, label?: string): void {
+  const existing = ringRegistry.get(canvas);
+  ringRegistry.set(canvas, { poly, mode, label: label ?? existing?.label ?? 'Coefficient' });
+
   const ctx = clearCanvas(canvas);
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
@@ -300,6 +386,63 @@ function countCoefficients(poly: Polynomial): string {
   return `${plus} x +1, ${minus} x -1, ${zero} x 0`;
 }
 
+function describeCoeff(record: RingRecord, index: number): string {
+  const value = record.poly[index];
+  if (record.mode === 'private') {
+    return 'hidden (secret key)';
+  }
+  if (record.mode === 'cipher' || record.mode === 'public') {
+    return `${value} (centered ${centerCoeff(value, NTRU_PARAMS.q)})`;
+  }
+  return `${value}`;
+}
+
+function ringIndexAt(canvas: HTMLCanvasElement, clientX: number, clientY: number): number | null {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (clientX - rect.left) * (canvas.width / rect.width);
+  const my = (clientY - rect.top) * (canvas.height / rect.height);
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const dx = mx - cx;
+  const dy = my - cy;
+  const dist = Math.hypot(dx, dy);
+  const outer = Math.min(cx, cy) - 8;
+  const inner = outer - 34;
+  if (dist < inner - 8 || dist > outer + 8) {
+    return null;
+  }
+  const record = ringRegistry.get(canvas);
+  const n = record ? record.poly.length : 0;
+  if (n === 0) {
+    return null;
+  }
+  // Slice i starts at angle (i/n)·2π − π/2 (top), increasing clockwise.
+  let ang = Math.atan2(dy, dx) + Math.PI / 2;
+  ang = ((ang % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  return Math.floor((ang / (Math.PI * 2)) * n) % n;
+}
+
+function attachRingInspector(canvas: HTMLCanvasElement): void {
+  const readout = canvas.closest('section')?.querySelector<HTMLElement>('.ring-inspect');
+  if (!readout) {
+    return;
+  }
+  const idle = 'Hover or move over a ring to inspect individual coefficients.';
+  const update = (clientX: number, clientY: number): void => {
+    const record = ringRegistry.get(canvas);
+    const index = ringIndexAt(canvas, clientX, clientY);
+    if (!record || index === null) {
+      readout.textContent = idle;
+      return;
+    }
+    readout.textContent = `${record.label}: coefficient[${index}] = ${describeCoeff(record, index)}`;
+  };
+  canvas.addEventListener('mousemove', (event) => update(event.clientX, event.clientY));
+  canvas.addEventListener('mouseleave', () => {
+    readout.textContent = idle;
+  });
+}
+
 function setStatus(el: HTMLElement, text: string, kind: 'neutral' | 'ok' | 'warn'): void {
   el.textContent = text;
   el.className = `status ${kind}`;
@@ -324,10 +467,63 @@ function updateMessageMeta(bytesLength: number): void {
   messageMetaEl.textContent = `${bytesLength}/${maxBytes} bytes used (${remaining} remaining).`;
 }
 
+const walkthroughBodyEl = document.querySelector<HTMLDivElement>('#walkthrough-body');
+
 let keyPair: NTRUKeyPair | null = null;
 let messagePoly: Polynomial | null = null;
+let blindingPoly: Polynomial | null = null;
 let ciphertext: Polynomial | null = null;
 let originalLength = 0;
+
+function resetWalkthrough(): void {
+  if (walkthroughBodyEl) {
+    walkthroughBodyEl.innerHTML =
+      '<p class="assistive">Decrypt a message to populate this walkthrough with live values.</p>';
+  }
+}
+
+function walkthroughStep(titleHtml: string, detail: string): string {
+  return `<li><span class="wt-title">${titleHtml}</span><span class="wt-detail">${detail}</span></li>`;
+}
+
+function renderWalkthrough(): void {
+  if (!walkthroughBodyEl || !keyPair || !ciphertext || !blindingPoly || !messagePoly) {
+    return;
+  }
+  const w = explainDecryption(ciphertext, keyPair.privateKey, {
+    r: blindingPoly,
+    g: keyPair.g,
+    m: messagePoly,
+  });
+  const half = Math.floor(NTRU_PARAMS.q / 2);
+
+  const rows = [
+    walkthroughStep(
+      `Lift ${tex('a = \\langle f \\cdot e \\rangle')} (center-reduced mod q)`,
+      `max |coefficient| = ${w.maxLiftCoeff}  ·  window is ±${half}`,
+    ),
+    walkthroughStep(
+      `Identity check: ${tex('a \\stackrel{?}{=} \\langle p\\,r\\,g + f\\,m \\rangle \\bmod q')}`,
+      w.identityHolds
+        ? 'holds exactly — a = p·r·g + f·m ✓'
+        : 'mismatch — ciphertext was altered, identity broken ✗',
+    ),
+    walkthroughStep(
+      'Decryption margin before a coefficient wraps mod q',
+      `${w.decryptionMargin} of ${half}  ·  smaller margin ⇒ higher failure risk`,
+    ),
+    walkthroughStep(
+      `Strip the ${tex('p\\,r\\,g')} term: ${tex('b = a \\bmod p')}`,
+      `coefficient profile: ${countCoefficients(w.aModP)}`,
+    ),
+    walkthroughStep(
+      `Recover ${tex("m' = F_p \\cdot b \\bmod p")}`,
+      `coefficient profile: ${countCoefficients(w.recovered)}`,
+    ),
+  ];
+
+  walkthroughBodyEl.innerHTML = `<ol class="walkthrough-steps">${rows.join('')}</ol>`;
+}
 
 generateButtonEl.addEventListener('click', () => {
     setButtonBusy(generateButtonEl, true, 'Generate Keypair');
@@ -358,6 +554,8 @@ generateButtonEl.addEventListener('click', () => {
     tamperButtonEl.disabled = true;
     ciphertext = null;
     messagePoly = null;
+    blindingPoly = null;
+    resetWalkthrough();
     decodeOutputEl.textContent = '';
 
     drawRing(ringPublicEl, keyPair.publicKey, 'public');
@@ -389,6 +587,8 @@ encryptButtonEl.addEventListener('click', () => {
     originalLength = bytes.length;
     const encrypted = encrypt(messagePoly, keyPair.publicKey);
     ciphertext = encrypted.ciphertext;
+    blindingPoly = encrypted.blindingPoly;
+    resetWalkthrough();
 
     drawRing(ringMessageEl, messagePoly, 'ternary');
     drawRing(ringBlindEl, encrypted.blindingPoly, 'ternary');
@@ -413,6 +613,7 @@ decryptButtonEl.addEventListener('click', () => {
 
     const recovered = decrypt(ciphertext, keyPair.privateKey);
     drawRing(ringRecoveredEl, recovered, 'ternary');
+    renderWalkthrough();
 
     const diagnosis = diagnoseDecryption(messagePoly, recovered);
     if (diagnosis.matches) {
@@ -444,6 +645,7 @@ tamperButtonEl.addEventListener('click', () => {
 
   const recoveredTampered = decrypt(ciphertext, keyPair.privateKey);
   drawRing(ringRecoveredEl, recoveredTampered, 'ternary');
+  renderWalkthrough();
   const diagnosis = diagnoseDecryption(messagePoly, recoveredTampered);
 
   setStatus(
@@ -454,25 +656,72 @@ tamperButtonEl.addEventListener('click', () => {
   decodeOutputEl.textContent = 'This demonstrates ciphertext integrity sensitivity in lattice PKE.';
 });
 
-interface LatticeState {
-  label: string;
-  b1: [number, number];
-  b2: [number, number];
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let reductionTrace: ReductionStep[] = [];
+let reductionIndex = 0;
+let latticeScale = 34;
+let latticePoints: Vec2[] = [];
+let autoTimer: number | null = null;
+
+function drawArrow(
+  ctx: CanvasRenderingContext2D,
+  ox: number,
+  oy: number,
+  vx: number,
+  vy: number,
+  color: string,
+  width: number,
+): void {
+  const tipX = ox + vx * latticeScale;
+  const tipY = oy - vy * latticeScale;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(ox, oy);
+  ctx.lineTo(tipX, tipY);
+  ctx.stroke();
+
+  const len = Math.hypot(tipX - ox, tipY - oy);
+  if (len < 6) {
+    return;
+  }
+  const ux = (tipX - ox) / len;
+  const uy = (tipY - oy) / len;
+  const head = 9;
+  ctx.beginPath();
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(tipX - head * ux + head * 0.55 * uy, tipY - head * uy - head * 0.55 * ux);
+  ctx.lineTo(tipX - head * ux - head * 0.55 * uy, tipY - head * uy + head * 0.55 * ux);
+  ctx.closePath();
+  ctx.fill();
 }
 
-const latticeStates: LatticeState[] = [
-  { label: 'Bad basis: long, near-parallel vectors', b1: [6, 1], b2: [5.2, 0.8] },
-  { label: 'Size reduction: b2 <- b2 - b1', b1: [6, 1], b2: [-0.8, -0.2] },
-  { label: 'Swap and reduce: shorter, more orthogonal', b1: [-0.8, -0.2], b2: [1.2, -0.4] },
-];
+function buildLatticePoints(b1: Vec2, b2: Vec2): Vec2[] {
+  const halfW = latticeCanvasEl.width / 2 / latticeScale;
+  const halfH = latticeCanvasEl.height / 2 / latticeScale;
+  const shortest = Math.max(0.5, Math.min(norm(b1), norm(b2)));
+  const reach = Math.hypot(halfW, halfH);
+  const range = Math.min(80, Math.ceil(reach / shortest) + 2);
 
-let latticeStep = 0;
+  const points: Vec2[] = [];
+  for (let i = -range; i <= range; i += 1) {
+    for (let j = -range; j <= range; j += 1) {
+      const x = i * b1.x + j * b2.x;
+      const y = i * b1.y + j * b2.y;
+      if (Math.abs(x) <= halfW + 0.01 && Math.abs(y) <= halfH + 0.01) {
+        points.push({ x, y });
+      }
+    }
+  }
+  return points;
+}
 
-function drawLattice(state: LatticeState): void {
+function drawLattice(step: ReductionStep): void {
   const ctx = clearCanvas(latticeCanvasEl);
   const ox = latticeCanvasEl.width / 2;
   const oy = latticeCanvasEl.height / 2;
-  const scale = 34;
 
   ctx.fillStyle = '#0b0f18';
   ctx.fillRect(0, 0, latticeCanvasEl.width, latticeCanvasEl.height);
@@ -486,64 +735,136 @@ function drawLattice(state: LatticeState): void {
   ctx.lineTo(ox, latticeCanvasEl.height);
   ctx.stroke();
 
-  for (let i = -4; i <= 4; i += 1) {
-    for (let j = -4; j <= 4; j += 1) {
-      const x = ox + scale * (i * state.b1[0] + j * state.b2[0]);
-      const y = oy - scale * (i * state.b1[1] + j * state.b2[1]);
-      if (x < 0 || y < 0 || x > latticeCanvasEl.width || y > latticeCanvasEl.height) {
-        continue;
-      }
-      ctx.fillStyle = '#47526a';
-      ctx.beginPath();
-      ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  const vectors: [number, number, string][] = [
-    [state.b1[0], state.b1[1], '#00d4ff'],
-    [state.b2[0], state.b2[1], '#ff00aa'],
-  ];
-
-  let shortest: [number, number] = [state.b1[0], state.b1[1]];
-  let shortestNorm = state.b1[0] ** 2 + state.b1[1] ** 2;
-  const candidate = [state.b2[0], state.b2[1]] as [number, number];
-  const norm2 = candidate[0] ** 2 + candidate[1] ** 2;
-  if (norm2 < shortestNorm) {
-    shortest = candidate;
-    shortestNorm = norm2;
-  }
-
-  for (const [vx, vy, color] of vectors) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
+  for (const p of latticePoints) {
+    ctx.fillStyle = '#47526a';
     ctx.beginPath();
-    ctx.moveTo(ox, oy);
-    ctx.lineTo(ox + vx * scale, oy - vy * scale);
-    ctx.stroke();
+    ctx.arc(ox + p.x * latticeScale, oy - p.y * latticeScale, 2.2, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  ctx.strokeStyle = '#9d4edd';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(ox, oy);
-  ctx.lineTo(ox + shortest[0] * scale, oy - shortest[1] * scale);
-  ctx.stroke();
-
-  lllStateText.textContent = state.label;
+  // Highlight the shortest vector underneath, then draw both basis vectors.
+  drawArrow(ctx, ox, oy, step.shortest.x, step.shortest.y, '#9d4edd', 7);
+  drawArrow(ctx, ox, oy, step.b1.x, step.b1.y, '#00d4ff', 3);
+  drawArrow(ctx, ox, oy, step.b2.x, step.b2.y, '#ff00aa', 3);
 }
 
-drawLattice(latticeStates[latticeStep]);
+function formatVec(v: Vec2): string {
+  const round = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  return `(${round(v.x)}, ${round(v.y)})`;
+}
 
-document.querySelector<HTMLButtonElement>('#lll-step')?.addEventListener('click', () => {
-  latticeStep = (latticeStep + 1) % latticeStates.length;
-  drawLattice(latticeStates[latticeStep]);
+function renderReductionStep(): void {
+  const step = reductionTrace[reductionIndex];
+  drawLattice(step);
+
+  const det = Math.abs(step.b1.x * step.b2.y - step.b1.y * step.b2.x);
+  const shortNorm = Math.min(step.norms[0], step.norms[1]);
+  lllReadout.textContent = [
+    `Step ${reductionIndex} / ${reductionTrace.length - 1}`,
+    step.description,
+    '',
+    `b₁ = ${formatVec(step.b1)}    ‖b₁‖ = ${step.norms[0].toFixed(3)}`,
+    `b₂ = ${formatVec(step.b2)}    ‖b₂‖ = ${step.norms[1].toFixed(3)}`,
+    '',
+    `shortest ‖·‖ = ${shortNorm.toFixed(3)}    det = ${det.toFixed(0)} (invariant)`,
+  ].join('\n');
+
+  const atEnd = step.done || reductionIndex >= reductionTrace.length - 1;
+  setStatus(
+    lllStateText,
+    atEnd ? 'Basis reduced: b₁ is a shortest lattice vector.' : 'Reduction in progress.',
+    atEnd ? 'ok' : 'neutral',
+  );
+  latticeCanvasEl.setAttribute(
+    'aria-label',
+    `2D lattice reduction step ${reductionIndex} of ${reductionTrace.length - 1}. ${step.description}. Shortest vector norm ${shortNorm.toFixed(2)}.`,
+  );
+
+  lllStep.disabled = atEnd;
+  lllStep.textContent = atEnd ? 'Reduced' : 'Apply Reduction Step';
+}
+
+function stopAuto(): void {
+  if (autoTimer !== null) {
+    window.clearInterval(autoTimer);
+    autoTimer = null;
+  }
+  lllAuto.textContent = 'Auto-Reduce';
+  lllAuto.setAttribute('aria-pressed', 'false');
+}
+
+function startReduction(b1: Vec2, b2: Vec2): void {
+  stopAuto();
+  reductionTrace = gaussReduce(b1, b2);
+  reductionIndex = 0;
+
+  let maxNorm = 1;
+  for (const s of reductionTrace) {
+    maxNorm = Math.max(maxNorm, s.norms[0], s.norms[1]);
+  }
+  const halfMin = Math.min(latticeCanvasEl.width, latticeCanvasEl.height) / 2 - 24;
+  latticeScale = halfMin / maxNorm;
+
+  const reduced = reductionTrace[reductionTrace.length - 1];
+  latticePoints = buildLatticePoints(reduced.b1, reduced.b2);
+  renderReductionStep();
+}
+
+lllStep.addEventListener('click', () => {
+  stopAuto();
+  if (reductionIndex < reductionTrace.length - 1) {
+    reductionIndex += 1;
+    renderReductionStep();
+  }
 });
 
+lllAuto.addEventListener('click', () => {
+  if (autoTimer !== null) {
+    stopAuto();
+    return;
+  }
+  if (reductionIndex >= reductionTrace.length - 1) {
+    return;
+  }
+  if (prefersReducedMotion) {
+    reductionIndex = reductionTrace.length - 1;
+    renderReductionStep();
+    return;
+  }
+  lllAuto.textContent = 'Pause';
+  lllAuto.setAttribute('aria-pressed', 'true');
+  autoTimer = window.setInterval(() => {
+    if (reductionIndex >= reductionTrace.length - 1) {
+      stopAuto();
+      return;
+    }
+    reductionIndex += 1;
+    renderReductionStep();
+  }, 850);
+});
+
+lllNew.addEventListener('click', () => {
+  const { b1, b2 } = randomBadBasis();
+  startReduction(b1, b2);
+});
+
+startReduction({ x: 12, y: 2 }, { x: 13, y: 4 });
+
 const empty = new Int32Array(NTRU_PARAMS.N);
-drawRing(ringMessageEl, empty, 'ternary');
-drawRing(ringBlindEl, empty, 'ternary');
-drawRing(ringCipherEl, empty, 'cipher');
-drawRing(ringRecoveredEl, empty, 'ternary');
-drawRing(ringPublicEl, empty, 'public');
-drawRing(ringPrivateEl, empty, 'private');
+drawRing(ringMessageEl, empty, 'ternary', 'Message m');
+drawRing(ringBlindEl, empty, 'ternary', 'Blinding r');
+drawRing(ringCipherEl, empty, 'cipher', 'Ciphertext e');
+drawRing(ringRecoveredEl, empty, 'ternary', "Recovered m'");
+drawRing(ringPublicEl, empty, 'public', 'Public key h');
+drawRing(ringPrivateEl, empty, 'private', 'Private key f');
+
+for (const canvas of [
+  ringPublicEl,
+  ringPrivateEl,
+  ringMessageEl,
+  ringBlindEl,
+  ringCipherEl,
+  ringRecoveredEl,
+]) {
+  attachRingInspector(canvas);
+}

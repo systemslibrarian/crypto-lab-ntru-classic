@@ -1,7 +1,14 @@
 import { execSync } from 'node:child_process';
 import { NTRU_PARAMS, modPos, multiply, randomTernary } from '../src/polynomial';
 import { inverseModP, inverseModQ, isInverse } from '../src/inverse';
-import { decrypt, diagnoseDecryption, encrypt, generateKeyPair } from '../src/ntru';
+import {
+  decrypt,
+  diagnoseDecryption,
+  encrypt,
+  explainDecryption,
+  generateKeyPair,
+} from '../src/ntru';
+import { gaussReduce, norm2, randomBadBasis } from '../src/lattice';
 
 const results: string[] = [];
 
@@ -73,4 +80,37 @@ const paramsPass =
   NTRU_PARAMS.dr === 143;
 results.push(`10. ees443ep1 parameter set exact: ${paramsPass ? 'PASS' : 'FAIL'}`);
 
+let latticePass = true;
+for (let i = 0; i < 200; i += 1) {
+  const { b1, b2 } = randomBadBasis();
+  const det0 = Math.abs(b1.x * b2.y - b1.y * b2.x);
+  const trace = gaussReduce(b1, b2);
+  const final = trace[trace.length - 1];
+  const detF = Math.abs(final.b1.x * final.b2.y - final.b1.y * final.b2.x);
+  if (norm2(final.b1) > norm2(final.b2) + 1e-9 || Math.abs(detF - det0) > 1e-6 || !final.done) {
+    latticePass = false;
+    break;
+  }
+}
+results.push(`11. Gauss reduction reduced + determinant-invariant (200 fuzz): ${latticePass ? 'PASS' : 'FAIL'}`);
+
+const wMsg = randomTernary(NTRU_PARAMS.N, 80, 80);
+const wEnc = encrypt(wMsg, kp.publicKey);
+const w = explainDecryption(wEnc.ciphertext, kp.privateKey, {
+  r: wEnc.blindingPoly,
+  g: kp.g,
+  m: wMsg,
+});
+const identityPass = w.identityHolds && w.decryptionMargin > 0;
+results.push(`12. decryption identity f·e ≡ p·r·g + f·m holds (margin=${w.decryptionMargin}): ${identityPass ? 'PASS' : 'FAIL'}`);
+
+const gateCount = results.length;
+const allPass = results.every((line) => !line.includes('FAIL'));
+results.push('');
+results.push(`Summary: ${allPass ? 'ALL GATES PASS' : 'FAILURES PRESENT'} (${gateCount} gates)`);
+
 console.log(results.join('\n'));
+
+if (!allPass) {
+  process.exitCode = 1;
+}

@@ -14,6 +14,12 @@ export interface NTRUKeyPair {
   privateKey: { f: Polynomial; F_p: Polynomial };
   publicKey: Polynomial;
   generationAttempts: number;
+  /**
+   * The secret g used to build h = p·F_q·g. It is NOT needed to decrypt
+   * (only f and F_p are), and is exposed here purely so the teaching
+   * walkthrough can verify the identity f·e ≡ p·r·g + f·m (mod q).
+   */
+  g: Polynomial;
 }
 
 function toBalancedMod3(poly: Polynomial): Polynomial {
@@ -74,6 +80,7 @@ export function generateKeyPair(
       privateKey: { f, F_p },
       publicKey,
       generationAttempts: attempt,
+      g,
     };
   }
 }
@@ -210,5 +217,68 @@ export function diagnoseDecryption(
     matches: diffs === 0,
     differingCoefficients: diffs,
     totalCoefficients: original.length,
+  };
+}
+
+export interface DecryptionWalkthrough {
+  /** a = center-lift of f·e mod q. Should equal the expected lift below. */
+  a: Polynomial;
+  /** center-lift of (p·r·g + f·m) mod q — what the identity predicts. */
+  expectedLift: Polynomial;
+  /** Whether a equals the expected lift (the core NTRU identity holds). */
+  identityHolds: boolean;
+  /** Largest |coefficient| of a after centering. */
+  maxLiftCoeff: number;
+  /** q/2 − maxLiftCoeff: headroom before a coefficient would wrap mod q. */
+  decryptionMargin: number;
+  /** a reduced mod p (balanced) — strips the p·r·g term. */
+  aModP: Polynomial;
+  /** Final recovered message m' = F_p · (a mod p) mod p. */
+  recovered: Polynomial;
+}
+
+/**
+ * Reproduce the decryption steps while also computing the right-hand side of
+ * the identity f·e ≡ p·r·g + f·m (mod q), so the UI can show that the lift the
+ * receiver computes is exactly what the algebra predicts — and how much margin
+ * separated this ciphertext from a (rare) decryption failure.
+ */
+export function explainDecryption(
+  e: Polynomial,
+  privateKey: { f: Polynomial; F_p: Polynomial },
+  witness: { r: Polynomial; g: Polynomial; m: Polynomial },
+): DecryptionWalkthrough {
+  const { f, F_p } = privateKey;
+  const { r, g, m } = witness;
+
+  const a = centerReduce(multiply(f, e, NTRU_PARAMS.q), NTRU_PARAMS.q);
+
+  const prg = scalePoly(multiply(r, g, NTRU_PARAMS.q), NTRU_PARAMS.p, NTRU_PARAMS.q);
+  const fm = multiply(f, m, NTRU_PARAMS.q);
+  const expectedLift = centerReduce(add(prg, fm, NTRU_PARAMS.q), NTRU_PARAMS.q);
+
+  let identityHolds = true;
+  let maxLiftCoeff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== expectedLift[i]) {
+      identityHolds = false;
+    }
+    const mag = Math.abs(a[i]);
+    if (mag > maxLiftCoeff) {
+      maxLiftCoeff = mag;
+    }
+  }
+
+  const aModP = toBalancedMod3(reduceMod(a, NTRU_PARAMS.p));
+  const recovered = toBalancedMod3(multiply(F_p, reduceMod(a, NTRU_PARAMS.p), NTRU_PARAMS.p));
+
+  return {
+    a,
+    expectedLift,
+    identityHolds,
+    maxLiftCoeff,
+    decryptionMargin: Math.floor(NTRU_PARAMS.q / 2) - maxLiftCoeff,
+    aModP,
+    recovered,
   };
 }

@@ -14,10 +14,14 @@ export function zeroPoly(n: number): Polynomial {
   return new Int32Array(n);
 }
 
-/** Positive modulo (JavaScript % is broken for negatives). */
+/** Positive modulo (JavaScript % is broken for negatives, and yields -0). */
 export function modPos(a: number, m: number): number {
   const r = a % m;
-  return r < 0 ? r + m : r;
+  if (r < 0) {
+    return r + m;
+  }
+  // Normalize -0 (e.g. -2048 % 2048) to +0 so it never reaches coefficients.
+  return r === 0 ? 0 : r;
 }
 
 /** Center-reduce: coefficients into [-m/2, m/2]. */
