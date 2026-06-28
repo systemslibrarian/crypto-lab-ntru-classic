@@ -1,8 +1,8 @@
 # crypto-lab-ntru-classic
 
-Browser-based NTRU demo implementing the original 1996 Hoffstein-Pipher-Silverman lattice cryptosystem with EESS#1 v3.3 ees443ep1 parameters.
-
 ## What It Is
+
+Browser-based NTRU demo implementing the original 1996 Hoffstein-Pipher-Silverman lattice cryptosystem with EESS#1 v3.3 ees443ep1 parameters.
 
 This project is a browser-based educational implementation of NTRU Classic using the original scheme family described by Hoffstein, Pipher, and Silverman, with ees443ep1 parameters:
 
@@ -22,6 +22,52 @@ All polynomial arithmetic is implemented from scratch with `Int32Array` coeffici
 The demo explicitly shows probabilistic key generation retries when `f` is not invertible, then walks through encryption and decryption using:
 
 `f · e ≡ p·r·g + f·m (mod q)`
+
+## When to Use It
+
+- understand the origin of lattice public-key cryptography
+- learn polynomial ring arithmetic behind post-quantum schemes
+- compare original NTRU design choices with modern ML-KEM (Kyber)
+- teach why short-vector problems became central in PQC
+- Do NOT use this as production cryptography — it is a teaching demo; for standardized KEM deployment, use ML-KEM implementations.
+
+## Live Demo
+
+**[systemslibrarian.github.io/crypto-lab-ntru-classic](https://systemslibrarian.github.io/crypto-lab-ntru-classic/)**
+
+The demo runs the full NTRU Classic flow in the browser: watch probabilistic key generation discard non-invertible `f`, encode a string to a ternary polynomial, then encrypt, decrypt, and tamper, with a collapsible decryption walkthrough that typesets the algebra and verifies the `f · e ≡ p·r·g + f·m (mod q)` identity with live values. A live Gauss–Lagrange 2D lattice reduction (the analogue of LLL), a comparison table against ML-KEM-768, and a historical timeline round out the exhibits.
+
+## What Can Go Wrong
+
+- Decryption failures are possible (rare, around 2^-80 for ees443ep1).
+- Key generation is probabilistic; some candidate `f` values are discarded.
+- This TypeScript demo is not constant-time and can leak timing structure.
+- Parameter choice matters; weaker historical parameter sets are no longer secure.
+- Classical NTRU is IND-CPA. Modern KEMs add transforms (for example FO-style) for IND-CCA security.
+
+## Real-World Usage
+
+- NTRU was introduced in 1996 by Jeffrey Hoffstein, Jill Pipher, and Joseph Silverman at Brown University.
+- 1996–1998: invention, CRYPTO rump-session presentation, and ANTS-III publication.
+- 2009–2011: IEEE P1363.1 standardization and ANSI X9.98 adoption in finance.
+- 2017: US patent expiration; 2020: NIST PQC finalist.
+- 2024: ML-KEM (Kyber) standardized as FIPS 203. NTRU remains historically foundational and pedagogically important for understanding modern lattice cryptography.
+
+## How to Run Locally
+
+```bash
+git clone https://github.com/systemslibrarian/crypto-lab-ntru-classic
+cd crypto-lab-ntru-classic
+npm install
+npm run dev
+```
+
+## Related Demos
+
+- [crypto-lab-kyber-vault](https://systemslibrarian.github.io/crypto-lab-kyber-vault/) — ML-KEM (FIPS 203), the standardized lattice KEM NTRU is compared against.
+- [crypto-lab-falcon-seal](https://systemslibrarian.github.io/crypto-lab-falcon-seal/) — FN-DSA signatures built on NTRU lattices and FFT sampling.
+- [crypto-lab-frodo-vault](https://systemslibrarian.github.io/crypto-lab-frodo-vault/) — conservative LWE lattice KEM without ring structure.
+- [crypto-lab-pq-families](https://systemslibrarian.github.io/crypto-lab-pq-families/) — overview of the five post-quantum cryptographic families.
 
 ## Exhibits
 
@@ -43,41 +89,8 @@ npm run build    # type-check and production build
 
 Correctness is guarded by a Vitest suite (polynomial arithmetic, inversion, encode/decode, encrypt/decrypt round-trips, the decryption identity, and Gauss reduction with a 200-case fuzz) plus a headless DOM smoke test that drives the full generate → encrypt → decrypt flow. CI runs the tests and verification gates before every GitHub Pages deploy.
 
-## When to Use It
+---
 
-Use this lab when you want to:
+*One of 60+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
-- understand the origin of lattice public-key cryptography
-- learn polynomial ring arithmetic behind post-quantum schemes
-- compare original NTRU design choices with modern ML-KEM (Kyber)
-- teach why short-vector problems became central in PQC
-
-Do not use this as production cryptography. For standardized KEM deployment, use ML-KEM implementations.
-
-## Live Demo
-
-https://systemslibrarian.github.io/crypto-lab-ntru-classic/
-
-## What Can Go Wrong
-
-- Decryption failures are possible (rare, around 2^-80 for ees443ep1).
-- Key generation is probabilistic; some candidate `f` values are discarded.
-- This TypeScript demo is not constant-time and can leak timing structure.
-- Parameter choice matters; weaker historical parameter sets are no longer secure.
-- Classical NTRU is IND-CPA. Modern KEMs add transforms (for example FO-style) for IND-CCA security.
-
-## Real-World Usage
-
-NTRU was introduced in 1996 by Jeffrey Hoffstein, Jill Pipher, and Joseph Silverman at Brown University.
-
-Historical milestones:
-
-- 1996: invention and CRYPTO rump presentation
-- 1998: ANTS-III publication
-- 2009: IEEE P1363.1 standardization
-- 2011: ANSI X9.98 adoption in finance
-- 2017: US patent expiration
-- 2020: NIST PQC finalist
-- 2024: ML-KEM (Kyber) standardized as FIPS 203
-
-NTRU remains historically foundational and pedagogically important for understanding modern lattice cryptography.
+*"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
