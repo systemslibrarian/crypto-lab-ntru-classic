@@ -46,11 +46,12 @@ app.innerHTML = `
     <header class="cl-hero">
       <div class="cl-hero-main">
         <h1 class="cl-hero-title">NTRU</h1>
-        <p class="cl-hero-sub">1996 · the original lattice public-key cryptosystem</p>
+        <p class="cl-hero-sub">1996 · lattice public-key · ring Z[X]/(Xᴺ−1)</p>
+        <p class="cl-hero-desc">Generate a real keypair, then encrypt with e = r·h + m and watch decryption exploit the f·e ≡ p·r·g + f·m identity to peel the message back out of the noisy polynomial ring.</p>
       </div>
       <aside class="cl-hero-why" aria-label="Why it matters">
         <span class="cl-hero-why-label">WHY IT MATTERS</span>
-        <p class="cl-hero-why-text">NTRU was the first practical public-key system built on hard lattice problems, hiding messages in noisy polynomial arithmetic only the private key can untangle. The same idea now underpins the post-quantum standards replacing RSA.</p>
+        <p class="cl-hero-why-text">A quantum computer breaks RSA and elliptic curves but not the short-vector lattice problem NTRU rests on. This 1996 scheme is the ancestor of the post-quantum standards now hardening the internet against that future.</p>
       </aside>
     </header>
 
