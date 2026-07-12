@@ -43,10 +43,15 @@ function renderMathIn(root: ParentNode): void {
 app.innerHTML = `
   <a class="skip-link" href="#exhibit1">Skip to exhibits</a>
   <main class="lab">
-    <header class="hero">
-      <p class="eyebrow">crypto-lab-ntru-classic</p>
-      <h1>NTRU (1996): The Original Lattice Cryptosystem</h1>
-      <p class="lede">EESS#1 v3.3 ees443ep1 with N=443, p=3, q=2048. No external crypto libraries.</p>
+    <header class="cl-hero">
+      <div class="cl-hero-main">
+        <h1 class="cl-hero-title">NTRU</h1>
+        <p class="cl-hero-sub">1996 · the original lattice public-key cryptosystem</p>
+      </div>
+      <aside class="cl-hero-why" aria-label="Why it matters">
+        <span class="cl-hero-why-label">WHY IT MATTERS</span>
+        <p class="cl-hero-why-text">NTRU was the first practical public-key system built on hard lattice problems, hiding messages in noisy polynomial arithmetic only the private key can untangle. The same idea now underpins the post-quantum standards replacing RSA.</p>
+      </aside>
     </header>
 
     <section class="card" id="exhibit1">

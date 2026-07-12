@@ -55,21 +55,16 @@ body {
   gap: 1rem;
 }
 
-.hero {
-  border: 1px solid var(--panel-border);
-  background: linear-gradient(140deg, #0b1321, #17142a 60%, #10243a);
-  border-radius: 1rem;
-  padding: 1.4rem;
-  animation: riseIn 600ms ease-out;
-}
-
-.eyebrow {
-  margin: 0;
-  color: var(--accent);
-  text-transform: uppercase;
-  font: 600 0.78rem var(--mono);
-  letter-spacing: 0.12em;
-}
+/* BEGIN cl-hero standard — managed, keep in sync across fleet */
+.cl-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;margin:clamp(1rem,3vw,2rem) 0 1.5rem;}
+.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
+.cl-hero-title{margin:0;font-family:var(--display);font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;line-height:1.1;letter-spacing:.01em;color:var(--text);}
+.cl-hero-sub{margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);letter-spacing:.01em;color:var(--muted);opacity:.9;}
+.cl-hero-why{flex:0 1 min(40%,26rem);min-width:min(100%,15rem);border:1px solid color-mix(in srgb, var(--accent) 45%, var(--panel-border));border-radius:10px;padding:.85rem 1.05rem;background:color-mix(in srgb, var(--accent) 8%, var(--panel));}
+.cl-hero-why-label{display:block;font-size:.68rem;font-weight:700;letter-spacing:.14em;color:var(--accent);}
+.cl-hero-why-text{margin:.35rem 0 0;font-size:.95rem;line-height:1.5;color:var(--text);}
+@media (max-width:640px){.cl-hero{flex-direction:column;}.cl-hero-why{flex-basis:auto;width:100%;}}
+/* END cl-hero standard */
 
 h1,
 h2 {
@@ -86,11 +81,6 @@ h1 {
 h2 {
   margin-bottom: 0.6rem;
   font-size: clamp(1.1rem, 2vw, 1.6rem);
-}
-
-.lede {
-  margin: 0.7rem 0 0;
-  color: var(--muted);
 }
 
 .card {
@@ -405,8 +395,7 @@ th {
     margin-top: 0.5rem;
   }
 
-  .card,
-  .hero {
+  .card {
     border-radius: 0.8rem;
     padding: 0.8rem;
   }
@@ -426,3 +415,43 @@ th {
     min-width: 140px;
   }
 }
+
+/* BEGIN cl-hero standard — managed, keep in sync across fleet */
+.cl-hero{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:clamp(1rem,4vw,3rem);flex-wrap:wrap;
+  margin:clamp(1rem,3vw,2rem) 0 1.5rem;
+  border:1px solid var(--panel-border);
+  background:linear-gradient(140deg, #0b1321, #17142a 60%, #10243a);
+  border-radius:1rem;
+  padding:1.4rem;
+  animation:riseIn 600ms ease-out;
+}
+.cl-hero-main{flex:1 1 22rem;min-width:min(100%,20rem);}
+.cl-hero-title{
+  margin:0;font-family:var(--display);
+  font-size:clamp(1.6rem,3.8vw,2.7rem);font-weight:700;
+  line-height:1.1;letter-spacing:.01em;color:var(--text);
+}
+.cl-hero-sub{
+  margin:.4rem 0 0;font-size:clamp(.9rem,1.6vw,1.05rem);
+  letter-spacing:.01em;color:var(--muted);
+}
+.cl-hero-why{
+  flex:0 1 min(40%,26rem);min-width:min(100%,15rem);
+  border:1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius:10px;padding:.85rem 1.05rem;
+  background:color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.cl-hero-why-label{
+  display:block;font-size:.68rem;font-weight:700;
+  letter-spacing:.14em;color:var(--accent);
+}
+.cl-hero-why-text{
+  margin:.35rem 0 0;font-size:.95rem;line-height:1.5;color:var(--text);
+}
+@media (max-width:640px){
+  .cl-hero{flex-direction:column;}
+  .cl-hero-why{flex-basis:auto;width:100%;}
+}
+/* END cl-hero standard */
