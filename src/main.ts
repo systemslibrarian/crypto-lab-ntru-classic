@@ -19,6 +19,10 @@ import {
   norm,
   randomBadBasis,
 } from './lattice';
+import {
+  type LatticeBridge,
+  buildLatticeBridge,
+} from './ntru-lattice';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
@@ -55,9 +59,21 @@ app.innerHTML = `
       </aside>
     </header>
 
+    <section class="card intro-card" id="intro" aria-labelledby="intro-h">
+      <h2 id="intro-h">What is NTRU? Start here.</h2>
+      <p class="intro-lede">The public key <b>h</b> looks like random noise. The private key <b>f</b> is a secret <em>short</em> pattern. Anyone can scramble a message with <b>h</b>, but only someone who knows the short <b>f</b> can cleanly unscramble it.</p>
+      <p>That one sentence is the whole idea. Everything below earns the algebra behind it, one step at a time:</p>
+      <ol class="intro-map">
+        <li><b>Exhibit 1</b> builds the keypair — you will meet the short secret <b>f</b> and the noisy public <b>h</b>, and see why they look so different.</li>
+        <li><b>Exhibit 2</b> encrypts and decrypts, revealing each equation only once the things it talks about are on screen.</li>
+        <li><b>Exhibit 3</b> shows the attacker's view: <em>breaking NTRU means finding that short <b>f</b></em> hidden in a lattice — demonstrated on a real, fully worked small key.</li>
+      </ol>
+      <p class="intro-note">Why "short" and "noise"? A lattice is an infinite grid of points. NTRU hides <b>f</b> and <b>g</b> as a <em>short</em> vector on that grid; multiplying and inverting them modulo <b>q</b> to form <b>h</b> smears them into something that looks random. Finding the short vector again is believed to be hard even for a quantum computer — that is the security.</p>
+    </section>
+
     <section class="card" id="exhibit1">
-      <h2>Exhibit 1: Probabilistic Key Generation</h2>
-      <p>Key generation retries until f is invertible mod 3 and mod 2048. This probabilistic loop is expected behavior.</p>
+      <h2>Exhibit 1: Build the Keypair</h2>
+      <p><b>Goal:</b> produce two polynomials — a secret short <b>f</b> and a public noisy <b>h</b>. Key generation retries until <b>f</b> is invertible mod 3 and mod 2048 (it needs an inverse for both decryption and for building <b>h</b>). That probabilistic retry loop is expected behavior, not an error — click Generate a few times and you will occasionally see a discarded <b>f</b>.</p>
       <div class="controls">
         <button id="generate-keypair" type="button" aria-controls="keygen-log ring-public ring-private">Generate Keypair</button>
         <span id="keygen-summary" class="status neutral" role="status" aria-live="polite">No keypair generated yet.</span>
@@ -65,11 +81,11 @@ app.innerHTML = `
       <pre id="keygen-log" class="log" aria-live="polite"></pre>
       <div class="ring-grid">
         <figure>
-          <figcaption>Public key h (shared, gold)</figcaption>
+          <figcaption>Public key h — noisy (gold = coefficient size mod q)</figcaption>
           <canvas id="ring-public" width="330" height="330" role="img" aria-label="Public key ring visualization"></canvas>
         </figure>
         <figure>
-          <figcaption>Private key f (red, censored band)</figcaption>
+          <figcaption>Private key f — short and sparse (red = ±1, censored)</figcaption>
           <canvas id="ring-private" width="330" height="330" role="img" aria-label="Private key ring visualization"></canvas>
         </figure>
       </div>
@@ -80,21 +96,21 @@ app.innerHTML = `
         <span class="swatch" style="background:linear-gradient(90deg,#caa000,#fff0a8)"></span> mod-q magnitude (gold)
       </p>
       <p id="inspect-1" class="ring-inspect" role="status" aria-live="polite">Hover or move over a ring to inspect individual coefficients.</p>
+      <p class="ring-story"><b>Read the two rings side by side.</b> The private <b>f</b> is <em>short</em>: almost every coefficient is 0, with only a sprinkle of +1 (blue) and −1 (pink). That sparseness is the secret. The public <b>h = p·F<sub>q</sub>·g</b> is the same secret material multiplied and inverted modulo <b>q = 2048</b>, which spreads every coefficient across the full range 0…2047 — brighter gold means a bigger value. A big coefficient carries no meaning on its own; the smearing is exactly what hides the short pattern, so <b>h</b> leaks nothing an attacker can read directly.</p>
     </section>
 
     <section class="card" id="exhibit2">
       <h2>Exhibit 2: Encrypt and Decrypt</h2>
-      <div class="scheme-eqs">
-        <div class="math-display" data-tex-display="h = p \\cdot F_q \\cdot g \\pmod q"></div>
-        <div class="math-display" data-tex-display="e = r \\cdot h + m \\pmod q"></div>
-        <div class="math-display" data-tex-display="f \\cdot e \\equiv p\\,r\\,g + f\\,m \\pmod q"></div>
-        <div class="math-display" data-tex-display="m \\equiv F_p \\cdot (f \\cdot e \\bmod p) \\pmod p"></div>
-      </div>
-      <p class="assistive">The third line is the identity that makes decryption work: reduced mod p the p·r·g term vanishes, leaving f·m, which F<sub>p</sub> inverts back to m.</p>
+      <p class="section-lede">The equations below stay <b>locked and dimmed</b> until the things they talk about actually appear on screen. Type a message, hit Encrypt, then Decrypt — each formula unlocks the moment its inputs are drawn, so you meet every symbol as an object, not as algebra dumped up front.</p>
+
+      <h3 class="step-h">Step 1 — turn your message into a ternary polynomial</h3>
       <label for="message-input">Message</label>
       <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
       <p id="message-help" class="assistive">Maximum 73 bytes for ees443ep1 encoding in this demo.</p>
       <p id="message-meta" class="assistive" role="status" aria-live="polite"></p>
+      <p class="ring-story"><b>Why ternary (base 3)?</b> NTRU sets <b>p = 3</b>, so every message coefficient is one of just three values: −1, 0, +1. Each byte (0–255) is written in balanced base-3 across 6 slots. Ternary keeps the message <em>small</em> — the same "short" property that protects the key also keeps decryption inside its safety margin (Exhibit 2, Step 4). That is why <b>p = 3</b> is not arbitrary: it is the smallest odd modulus that still lets a coefficient be signed, giving the widest possible gap before values collide mod <b>q</b>.</p>
+
+      <h3 class="step-h">Step 2 — scramble it with the public key</h3>
       <div class="controls">
         <button id="encrypt-message" type="button" aria-controls="ring-message ring-blind ring-cipher">Encrypt</button>
         <button id="decrypt-message" type="button" aria-controls="ring-recovered" disabled>Decrypt</button>
@@ -102,6 +118,7 @@ app.innerHTML = `
       </div>
       <p id="enc-status" class="status neutral" role="status" aria-live="polite">Ready.</p>
       <p id="dec-status" class="status neutral" role="status" aria-live="polite">Decryption pending.</p>
+
       <div class="ring-grid">
         <figure>
           <figcaption>Message m (ternary ring)</figcaption>
@@ -128,6 +145,59 @@ app.innerHTML = `
       </p>
       <p id="inspect-2" class="ring-inspect" role="status" aria-live="polite">Hover or move over a ring to inspect individual coefficients.</p>
       <p id="decode-output" class="decode" role="status" aria-live="polite"></p>
+
+      <h3 class="step-h">The equations, unlocked as you go</h3>
+      <p class="assistive">Hover any symbol chip for a one-line definition. Locked rows are greyed until their inputs are on screen.</p>
+      <ol class="scheme-eqs" aria-label="NTRU scheme equations, revealed progressively">
+        <li class="eq-step" data-eq="h" data-unlocked="false">
+          <span class="eq-badge" data-state="locked" aria-live="polite">Needs a keypair</span>
+          <div class="math-display" data-tex-display="h = p \\cdot F_q \\cdot g \\pmod q"></div>
+          <p class="eq-gloss">Public key: <span class="chip" title="the secret polynomial you invert with">f⁻¹ mod q = F_q</span> <span class="chip" title="a second secret short polynomial">g</span> <span class="chip" title="the small prime 3 (ternary)">p</span> combine into the noisy <span class="chip" title="the shared public key">h</span>.</p>
+        </li>
+        <li class="eq-step" data-eq="e" data-unlocked="false">
+          <span class="eq-badge" data-state="locked" aria-live="polite">Needs Encrypt</span>
+          <div class="math-display" data-tex-display="e = r \\cdot h + m \\pmod q"></div>
+          <p class="eq-gloss">Ciphertext: a fresh random <span class="chip" title="one-time blinding polynomial, ternary">r</span> times <span class="chip" title="the public key">h</span>, plus your <span class="chip" title="the message polynomial, ternary">m</span>, gives <span class="chip" title="the ciphertext sent on the wire">e</span>.</p>
+        </li>
+        <li class="eq-step" data-eq="identity" data-unlocked="false">
+          <span class="eq-badge" data-state="locked" aria-live="polite">Needs Decrypt</span>
+          <div class="math-display" data-tex-display="f \\cdot e \\equiv p\\,r\\,g + f\\,m \\pmod q"></div>
+          <p class="eq-gloss">The load-bearing identity: multiplying <span class="chip" title="the private key">f</span> into <span class="chip" title="the ciphertext">e</span> reorganizes it into a <span class="chip" title="the p·r·g layer that mod-p erases">p·r·g</span> layer plus <span class="chip" title="the message, scaled by f">f·m</span>.</p>
+        </li>
+        <li class="eq-step" data-eq="recover" data-unlocked="false">
+          <span class="eq-badge" data-state="locked" aria-live="polite">Needs Decrypt</span>
+          <div class="math-display" data-tex-display="m \\equiv F_p \\cdot (f \\cdot e \\bmod p) \\pmod p"></div>
+          <p class="eq-gloss">Recovery: reduce mod <span class="chip" title="the prime 3">p</span> and the p·r·g layer vanishes; <span class="chip" title="f⁻¹ mod p">F_p</span> undoes the leftover f·m to return <span class="chip" title="the original message">m</span>.</p>
+        </li>
+      </ol>
+      <p class="assistive">The third line is the identity that makes decryption work: reduced mod p the p·r·g term vanishes, leaving f·m, which F<sub>p</sub> inverts back to m.</p>
+
+      <h3 class="step-h">Step 3 — watch decryption peel the layers off</h3>
+      <p class="assistive">The pipeline below animates the real recovered polynomials left to right. The <b>danger zone</b> band marks ±q/2: a coefficient that crosses it wraps mod q and corrupts the message. Decrypt to populate it.</p>
+      <div class="pipeline" id="dec-pipeline" role="group" aria-label="Decryption pipeline: e to a to mod p to recovered message">
+        <figure class="pipe-cell">
+          <figcaption>e — ciphertext</figcaption>
+          <canvas id="pipe-e" width="150" height="150" role="img" aria-label="Ciphertext ring in the decryption pipeline"></canvas>
+        </figure>
+        <span class="pipe-arrow" aria-hidden="true"><span class="pipe-op">× f</span>→</span>
+        <figure class="pipe-cell pipe-cell-wide">
+          <figcaption>a = ⟨f·e⟩ — lifted, with ±q/2 danger zone</figcaption>
+          <canvas id="pipe-a" width="300" height="150" role="img" aria-label="Lifted polynomial coefficients with wraparound danger zone"></canvas>
+          <span class="pipe-margin" id="pipe-margin" role="status" aria-live="polite"></span>
+        </figure>
+        <span class="pipe-arrow" aria-hidden="true"><span class="pipe-op">mod p</span>→</span>
+        <figure class="pipe-cell">
+          <figcaption>strip p·r·g</figcaption>
+          <canvas id="pipe-b" width="150" height="150" role="img" aria-label="Ring after reducing mod p"></canvas>
+        </figure>
+        <span class="pipe-arrow" aria-hidden="true"><span class="pipe-op">× F_p</span>→</span>
+        <figure class="pipe-cell">
+          <figcaption>m' — recovered</figcaption>
+          <canvas id="pipe-m" width="150" height="150" role="img" aria-label="Recovered message ring"></canvas>
+        </figure>
+      </div>
+
+      <h3 class="step-h">Step 4 — the algebra, verified with live values</h3>
       <details id="decrypt-walkthrough" class="walkthrough">
         <summary>Show the decryption walkthrough (the algebra, step by step)</summary>
         <div id="walkthrough-body" class="walkthrough-body">
@@ -138,9 +208,11 @@ app.innerHTML = `
     </section>
 
     <section class="card" id="exhibit3">
-      <h2>Exhibit 3: The Lattice Perspective</h2>
-      <p>The private key maps to a short vector in a 2N-dimensional lattice built from h. Breaking NTRU means finding that short vector. Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step.</p>
-      <p>Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
+      <h2>Exhibit 3: The Lattice Perspective — how you would attack NTRU</h2>
+      <p class="section-lede">Recovering the private key is exactly a lattice problem: <b>breaking NTRU means finding a short vector.</b> Part A builds the geometric intuition in 2D. Part B then closes the loop with a <em>real, fully worked</em> small NTRU key — no toy geometry, an actual keypair — and lets reduction land on the secret <b>f</b>.</p>
+
+      <h3 class="step-h">Part A — the geometry: reducing a basis finds a short vector</h3>
+      <p>Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step. Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
       <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. For ees443ep1, attacks are estimated near 2^128 work.</p>
       <div class="controls">
         <button id="lll-step" type="button" aria-controls="lattice-canvas lll-readout">Apply Reduction Step</button>
@@ -155,24 +227,47 @@ app.innerHTML = `
         </figure>
         <pre id="lll-readout" class="log lattice-readout" role="status" aria-live="polite"></pre>
       </div>
+
+      <h3 class="step-h">Part B — the bridge: this short vector <em>is</em> the NTRU key</h3>
+      <p>The full scheme lives in a 2N-dimensional lattice (2×443 = 886 dimensions), too big to draw. So here is a genuine, scaled-down NTRU key — real ternary <b>f</b> and <b>g</b>, a real polynomial inverse, a real public <b>h = p·F<sub>q</sub>·g</b> at <b>N=5, q=32</b> — with its true 10-dimensional public lattice. Press <b>Attack</b> to run real LLL on that lattice and watch the shortest vector it returns turn out to be the secret key itself.</p>
+      <div class="controls">
+        <button id="bridge-attack" type="button" aria-controls="bridge-out">Attack (run LLL)</button>
+        <button id="bridge-new" type="button" aria-controls="bridge-out">New Small Key</button>
+        <span id="bridge-state" class="status neutral" role="status" aria-live="polite">A fresh small NTRU key is loaded.</span>
+      </div>
+      <div id="bridge-out" class="bridge-out">
+        <div class="bridge-known">
+          <h4>What the attacker sees (public)</h4>
+          <p class="bridge-line" id="bridge-h">h = …</p>
+          <p class="bridge-hint">The attacker knows only <b>h</b> and the parameters. The 10×10 lattice basis is built entirely from <b>h</b> and <b>q</b> — no secret goes in.</p>
+        </div>
+        <div class="bridge-target">
+          <h4>The hidden short vector (the secret)</h4>
+          <p class="bridge-line" id="bridge-secret">f and g are hidden until you attack.</p>
+        </div>
+        <div class="bridge-result" id="bridge-result" role="status" aria-live="polite">
+          <p class="bridge-hint">Press <b>Attack</b> to run LLL and reveal what it recovers.</p>
+        </div>
+      </div>
+      <p class="assistive">Why does it come out rotated or negated? Any cyclic rotation of (p·g ‖ f) is an equally valid NTRU private key, so lattice reduction may land on any of them — a genuine symmetry of the scheme, not a demo shortcut. At N=443 the same lattice exists but no known algorithm finds its short vector in feasible time; that gap is NTRU's security.</p>
     </section>
 
     <section class="card" id="exhibit4">
       <h2>Exhibit 4: NTRU Classic vs Kyber</h2>
       <div class="table-wrap">
       <table>
-        <caption>Comparison of NTRU Classic and ML-KEM-768</caption>
-        <thead><tr><th scope="col">Property</th><th scope="col">NTRU Classic (1996)</th><th scope="col">ML-KEM-768 (2024)</th></tr></thead>
+        <caption>Comparison of NTRU Classic and ML-KEM-768, with the tradeoff each row implies</caption>
+        <thead><tr><th scope="col">Property</th><th scope="col">NTRU Classic (1996)</th><th scope="col">ML-KEM-768 (2024)</th><th scope="col">Why it matters</th></tr></thead>
         <tbody>
-          <tr><td>Designer(s)</td><td>Hoffstein, Pipher, Silverman</td><td>Avanzi, Bos, Ducas, Kiltz et al.</td></tr>
-          <tr><td>Ring</td><td>Z[X]/(X^N - 1)</td><td>Z_q[X]/(X^n + 1), n=256</td></tr>
-          <tr><td>Parameters</td><td>N=443, q=2048</td><td>n=256, q=3329, rank 3</td></tr>
-          <tr><td>Public key size</td><td>~609 bytes</td><td>1184 bytes</td></tr>
-          <tr><td>Ciphertext size</td><td>~609 bytes</td><td>1088 bytes</td></tr>
-          <tr><td>Security assumption</td><td>NTRU-specific</td><td>MLWE + MSIS</td></tr>
-          <tr><td>Decryption failures</td><td>~2^-80</td><td>~2^-164</td></tr>
-          <tr><td>NIST status</td><td>2020 finalist</td><td>Standardized (FIPS 203)</td></tr>
-          <tr><td>Patent status</td><td>Expired 2017</td><td>Patent-free</td></tr>
+          <tr><th scope="row">Designer(s)</th><td>Hoffstein, Pipher, Silverman</td><td>Avanzi, Bos, Ducas, Kiltz et al.</td><td class="why">NTRU came first; Kyber is a later community design that learned from it.</td></tr>
+          <tr><th scope="row">Ring</th><td>Z[X]/(X^N − 1)</td><td>Z_q[X]/(X^n + 1), n=256</td><td class="why">Kyber's X^n+1 with power-of-two n is NTT-friendly, so multiplication is O(n log n) instead of O(n²) — the main reason it is faster.</td></tr>
+          <tr><th scope="row">Parameters</th><td>N=443, q=2048</td><td>n=256, q=3329, rank 3</td><td class="why">Kyber fixes n and adds security by stacking rank-3 modules; NTRU scales one large N instead.</td></tr>
+          <tr><th scope="row">Public key size</th><td>~609 bytes</td><td>1184 bytes</td><td class="why">NTRU keys are smaller — an advantage where bandwidth is tight.</td></tr>
+          <tr><th scope="row">Ciphertext size</th><td>~609 bytes</td><td>1088 bytes</td><td class="why">Same story: NTRU ships less on the wire per message.</td></tr>
+          <tr><th scope="row">Security assumption</th><td>NTRU-specific</td><td>MLWE + MSIS</td><td class="why">Kyber reduces to well-studied worst-case lattice problems; NTRU's assumption is bespoke and less transferable.</td></tr>
+          <tr><th scope="row">Decryption failures</th><td>~2^-80</td><td>~2^-164</td><td class="why">A far smaller failure rate closes a channel attackers can exploit — a security margin, not just reliability.</td></tr>
+          <tr><th scope="row">NIST status</th><td>2020 finalist</td><td>Standardized (FIPS 203)</td><td class="why">Kyber won standardization; NTRU informs but is not the deployed KEM.</td></tr>
+          <tr><th scope="row">Patent status</th><td>Expired 2017</td><td>Patent-free</td><td class="why">Both are freely usable today — patent clarity was an early argument for Kyber.</td></tr>
         </tbody>
       </table>
       </div>
@@ -203,6 +298,33 @@ app.innerHTML = `
 `;
 
 renderMathIn(app);
+
+/** Progressive equation reveal: unlock a scheme equation once its inputs exist
+ * on screen, so a newcomer meets each symbol as a drawn object, not up front. */
+function setEquationUnlocked(eq: string, unlocked: boolean, readyLabel: string): void {
+  const step = app!.querySelector<HTMLElement>(`.eq-step[data-eq="${eq}"]`);
+  if (!step) {
+    return;
+  }
+  step.dataset.unlocked = String(unlocked);
+  const badge = step.querySelector<HTMLElement>('.eq-badge');
+  if (badge) {
+    badge.dataset.state = unlocked ? 'unlocked' : 'locked';
+    badge.textContent = unlocked ? readyLabel : badge.dataset.lockedLabel ?? badge.textContent ?? '';
+  }
+}
+
+// Remember each locked label so re-locking restores the "Needs …" prompt.
+app.querySelectorAll<HTMLElement>('.eq-badge').forEach((b) => {
+  b.dataset.lockedLabel = b.textContent ?? '';
+});
+
+function lockAllEquations(): void {
+  setEquationUnlocked('h', false, '');
+  setEquationUnlocked('e', false, '');
+  setEquationUnlocked('identity', false, '');
+  setEquationUnlocked('recover', false, '');
+}
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -536,6 +658,144 @@ function renderWalkthrough(): void {
   walkthroughBodyEl.innerHTML = `<ol class="walkthrough-steps">${rows.join('')}</ol>`;
 }
 
+// ---- Decryption pipeline (Step 3): left-to-right flow of the real polynomials.
+const pipeE = document.querySelector<HTMLCanvasElement>('#pipe-e');
+const pipeA = document.querySelector<HTMLCanvasElement>('#pipe-a');
+const pipeB = document.querySelector<HTMLCanvasElement>('#pipe-b');
+const pipeM = document.querySelector<HTMLCanvasElement>('#pipe-m');
+const pipeMargin = document.querySelector<HTMLElement>('#pipe-margin');
+
+function drawMiniRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMode): void {
+  const ctx = clearCanvas(canvas);
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const outer = Math.min(cx, cy) - 4;
+  const inner = outer - 16;
+  const n = poly.length;
+  ctx.fillStyle = '#101521';
+  ctx.beginPath();
+  ctx.arc(cx, cy, outer + 3, 0, Math.PI * 2);
+  ctx.fill();
+  for (let i = 0; i < n; i += 1) {
+    const start = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const end = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2;
+    const coeff = poly[i];
+    let color = '#3e414b';
+    if (mode === 'ternary') {
+      color = coeff === 1 ? '#00d4ff' : coeff === -1 ? '#ff00aa' : '#3e414b';
+    } else {
+      const centered = centerCoeff(coeff, NTRU_PARAMS.q);
+      const base = centered >= 0 ? 190 : 320;
+      const lum = 34 + Math.min(40, Math.abs(centered) / 30);
+      color = `hsl(${base} 93% ${lum}%)`;
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, start, end);
+    ctx.arc(cx, cy, inner, end, start, true);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+}
+
+/**
+ * Draw the lifted polynomial a = ⟨f·e⟩ as a coefficient bar chart with the
+ * ±q/2 wraparound "danger zone" bands. Bars that approach the band are the ones
+ * closest to a decryption failure — the margin readout made visual.
+ */
+function drawLiftBars(canvas: HTMLCanvasElement, a: Polynomial): void {
+  const ctx = clearCanvas(canvas);
+  const w = canvas.width;
+  const h = canvas.height;
+  const half = NTRU_PARAMS.q / 2; // ±1024
+  const mid = h / 2;
+  const scale = (mid - 6) / half;
+
+  ctx.fillStyle = '#0b0f18';
+  ctx.fillRect(0, 0, w, h);
+
+  // Danger-zone bands near ±q/2 (top and bottom ~12% of range).
+  const dangerFrac = 0.12;
+  const dangerPx = half * dangerFrac * scale;
+  ctx.fillStyle = 'rgba(255, 51, 102, 0.22)';
+  ctx.fillRect(0, 0, w, dangerPx);
+  ctx.fillRect(0, h - dangerPx, w, dangerPx);
+  // Threshold lines at ±q/2 boundary of the safe region.
+  ctx.strokeStyle = '#ff5c7a';
+  ctx.setLineDash([4, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, dangerPx);
+  ctx.lineTo(w, dangerPx);
+  ctx.moveTo(0, h - dangerPx);
+  ctx.lineTo(w, h - dangerPx);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Zero axis.
+  ctx.strokeStyle = '#2b3241';
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.stroke();
+
+  const n = a.length;
+  const barW = Math.max(1, w / n);
+  let maxMag = 0;
+  for (let i = 0; i < n; i += 1) {
+    const v = centerCoeff(a[i], NTRU_PARAMS.q);
+    if (Math.abs(v) > maxMag) {
+      maxMag = Math.abs(v);
+    }
+    const x = i * barW;
+    const barH = v * scale;
+    const inDanger = Math.abs(v) >= half * (1 - dangerFrac);
+    ctx.fillStyle = inDanger ? '#ff3366' : '#35d6bb';
+    ctx.fillRect(x, mid - barH, Math.max(0.7, barW - 0.4), barH === 0 ? 1 : barH);
+  }
+
+  if (pipeMargin) {
+    const margin = Math.floor(half) - maxMag;
+    pipeMargin.textContent = `largest |coeff| = ${maxMag} · margin to wrap = ${margin} of ${Math.floor(half)}`;
+  }
+}
+
+function renderPipeline(): void {
+  if (!pipeE || !pipeA || !pipeB || !pipeM) {
+    return;
+  }
+  if (!keyPair || !ciphertext || !blindingPoly || !messagePoly) {
+    return;
+  }
+  const w = explainDecryption(ciphertext, keyPair.privateKey, {
+    r: blindingPoly,
+    g: keyPair.g,
+    m: messagePoly,
+  });
+  drawMiniRing(pipeE, ciphertext, 'cipher');
+  drawLiftBars(pipeA, w.a);
+  drawMiniRing(pipeB, w.aModP, 'ternary');
+  drawMiniRing(pipeM, w.recovered, 'ternary');
+}
+
+function clearPipeline(): void {
+  if (pipeE) {
+    clearCanvas(pipeE);
+  }
+  if (pipeA) {
+    clearCanvas(pipeA);
+  }
+  if (pipeB) {
+    clearCanvas(pipeB);
+  }
+  if (pipeM) {
+    clearCanvas(pipeM);
+  }
+  if (pipeMargin) {
+    pipeMargin.textContent = '';
+  }
+}
+
 generateButtonEl.addEventListener('click', () => {
     setButtonBusy(generateButtonEl, true, 'Generate Keypair');
     const lines: string[] = [];
@@ -567,7 +827,12 @@ generateButtonEl.addEventListener('click', () => {
     messagePoly = null;
     blindingPoly = null;
     resetWalkthrough();
+    clearPipeline();
     decodeOutputEl.textContent = '';
+
+    // Equation reveal: h now exists; the rest wait for their inputs.
+    lockAllEquations();
+    setEquationUnlocked('h', true, 'h is on screen ✓');
 
     drawRing(ringPublicEl, keyPair.publicKey, 'public');
     drawRing(ringPrivateEl, keyPair.privateKey.f, 'private');
@@ -600,6 +865,12 @@ encryptButtonEl.addEventListener('click', () => {
     ciphertext = encrypted.ciphertext;
     blindingPoly = encrypted.blindingPoly;
     resetWalkthrough();
+    clearPipeline();
+
+    // Equation reveal: r, m and e are now drawn; identity/recovery still pending.
+    setEquationUnlocked('e', true, 'e is on screen ✓');
+    setEquationUnlocked('identity', false, '');
+    setEquationUnlocked('recover', false, '');
 
     drawRing(ringMessageEl, messagePoly, 'ternary');
     drawRing(ringBlindEl, encrypted.blindingPoly, 'ternary');
@@ -625,6 +896,11 @@ decryptButtonEl.addEventListener('click', () => {
     const recovered = decrypt(ciphertext, keyPair.privateKey);
     drawRing(ringRecoveredEl, recovered, 'ternary');
     renderWalkthrough();
+    renderPipeline();
+
+    // Equation reveal: the identity and recovery steps have now run.
+    setEquationUnlocked('identity', true, 'verified live ✓');
+    setEquationUnlocked('recover', true, "m' recovered ✓");
 
     const diagnosis = diagnoseDecryption(messagePoly, recovered);
     if (diagnosis.matches) {
@@ -657,6 +933,7 @@ tamperButtonEl.addEventListener('click', () => {
   const recoveredTampered = decrypt(ciphertext, keyPair.privateKey);
   drawRing(ringRecoveredEl, recoveredTampered, 'ternary');
   renderWalkthrough();
+  renderPipeline();
   const diagnosis = diagnoseDecryption(messagePoly, recoveredTampered);
 
   setStatus(
@@ -879,3 +1156,72 @@ for (const canvas of [
 ]) {
   attachRingInspector(canvas);
 }
+
+// ---- Exhibit 3 Part B: honest small NTRU → lattice recovery bridge.
+const bridgeAttackBtn = document.querySelector<HTMLButtonElement>('#bridge-attack');
+const bridgeNewBtn = document.querySelector<HTMLButtonElement>('#bridge-new');
+const bridgeStateEl = document.querySelector<HTMLElement>('#bridge-state');
+const bridgeHEl = document.querySelector<HTMLElement>('#bridge-h');
+const bridgeSecretEl = document.querySelector<HTMLElement>('#bridge-secret');
+const bridgeResultEl = document.querySelector<HTMLElement>('#bridge-result');
+
+let currentBridge: LatticeBridge | null = null;
+
+function fmtVec(v: number[]): string {
+  return `[${v.join(', ')}]`;
+}
+
+function loadBridge(): void {
+  currentBridge = buildLatticeBridge();
+  if (bridgeHEl) {
+    bridgeHEl.textContent = `h = ${fmtVec(currentBridge.h)}  (N=${currentBridge.N}, q=${currentBridge.q}, p=${currentBridge.p})`;
+  }
+  if (bridgeSecretEl) {
+    bridgeSecretEl.textContent = 'f and g are hidden until you attack.';
+  }
+  if (bridgeResultEl) {
+    bridgeResultEl.innerHTML =
+      '<p class="bridge-hint">Press <b>Attack</b> to run LLL and reveal what it recovers.</p>';
+  }
+  if (bridgeStateEl) {
+    setStatus(bridgeStateEl, 'A fresh small NTRU key is loaded.', 'neutral');
+  }
+}
+
+function runBridgeAttack(): void {
+  if (!currentBridge) {
+    loadBridge();
+  }
+  const b = currentBridge;
+  if (!b || !bridgeResultEl) {
+    return;
+  }
+  const pg = b.g.map((x) => x * b.p);
+  const row = b.reduced[b.shortestIndex];
+  const recFirst = row.slice(0, b.N);
+  const recSecond = row.slice(b.N);
+  const rotNote =
+    b.recovery.rotation === 0 && b.recovery.sign === 1
+      ? 'an exact match'
+      : `${b.recovery.sign === -1 ? 'negated and ' : ''}cyclically rotated by ${b.recovery.rotation} — still a valid private key`;
+
+  if (bridgeSecretEl) {
+    bridgeSecretEl.textContent = `secret f = ${fmtVec(b.f)}   ·   p·g = ${fmtVec(pg)}`;
+  }
+  bridgeResultEl.innerHTML = `
+    <p class="bridge-win"><b>LLL recovered the key.</b> The shortest vector in the public lattice is:</p>
+    <p class="bridge-line">recovered = ( ${fmtVec(recFirst)} ‖ ${fmtVec(recSecond)} )</p>
+    <p class="bridge-line bridge-key">= ( p·g ‖ f ), ${rotNote}</p>
+    <p class="bridge-hint">The right half <em>is</em> the private key <b>f</b> (up to the rotation/sign symmetry). Nothing was faked: the lattice was built only from public <b>h</b>, yet reduction handed back the secret. That is why NTRU's whole security rests on this staying hard at N=443.</p>`;
+  if (bridgeStateEl) {
+    setStatus(bridgeStateEl, 'Attack complete: the short vector is the private key.', 'ok');
+  }
+}
+
+if (bridgeAttackBtn) {
+  bridgeAttackBtn.addEventListener('click', runBridgeAttack);
+}
+if (bridgeNewBtn) {
+  bridgeNewBtn.addEventListener('click', loadBridge);
+}
+loadBridge();
