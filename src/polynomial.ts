@@ -1,5 +1,20 @@
 export type Polynomial = Int32Array;
 
+/**
+ * Fixed-weight ternary NTRU parameter set used throughout the demo.
+ *
+ * Attribution: these are the (N = 443, q = 2048, d = 143) values from
+ * Hoffstein, Pipher, Schanck, Silverman, Whyte & Zhang, "Choosing Parameters
+ * for NTRUEncrypt" (IACR ePrint 2015/708 / CT-RSA 2017).
+ *
+ * They are deliberately NOT the EESS#1 v3.3 set named `ees443ep1`. That set
+ * shares N = 443 and q = 2048 but is a *product-form* set: its private-key
+ * polynomial is built from df1 = 9, df2 = 8, df3 = 5 (see libntru's
+ * `src/encparams.c`, which implements EESS#1 v3.3), and its dg is 148, not 143.
+ * There is no single df = 143 in ees443ep1, so calling this set by that name
+ * would be wrong. Earlier versions of this demo did; the numbers never changed,
+ * only the citation.
+ */
 export const NTRU_PARAMS = {
   N: 443,
   p: 3,

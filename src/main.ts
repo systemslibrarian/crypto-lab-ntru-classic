@@ -106,7 +106,7 @@ app.innerHTML = `
       <h3 class="step-h">Step 1 — turn your message into a ternary polynomial</h3>
       <label for="message-input">Message</label>
       <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
-      <p id="message-help" class="assistive">Maximum 73 bytes for ees443ep1 encoding in this demo.</p>
+      <p id="message-help" class="assistive">Maximum 73 bytes for this demo's N=443 encoding.</p>
       <p id="message-meta" class="assistive" role="status" aria-live="polite"></p>
       <p class="ring-story"><b>Why ternary (base 3)?</b> NTRU sets <b>p = 3</b>, so every message coefficient is one of just three values: −1, 0, +1. Each byte (0–255) is written in balanced base-3 across 6 slots. Ternary keeps the message <em>small</em> — the same "short" property that protects the key also keeps decryption inside its safety margin (Exhibit 2, Step 4). That is why <b>p = 3</b> is not arbitrary: it is the smallest odd modulus that still lets a coefficient be signed, giving the widest possible gap before values collide mod <b>q</b>.</p>
 
@@ -204,7 +204,7 @@ app.innerHTML = `
           <p class="assistive">Decrypt a message to populate this walkthrough with live values.</p>
         </div>
       </details>
-      <p class="warning">Decryption failures are possible (rare, about 2^-80 for ees443ep1). This demo reports mismatches explicitly.</p>
+      <p class="warning">Decryption failures are possible: if a coefficient of <b>p·r·g + f·m</b> falls outside the ±q/2 window it wraps and the message is lost. Parameter sets are chosen to push that probability down to a negligible level, but it is never exactly zero &mdash; which is why modern lattice KEMs treat decryption failure as part of the security analysis rather than an afterthought. This demo reports mismatches explicitly.</p>
     </section>
 
     <section class="card" id="exhibit3">
@@ -213,7 +213,7 @@ app.innerHTML = `
 
       <h3 class="step-h">Part A — the geometry: reducing a basis finds a short vector</h3>
       <p>Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step. Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
-      <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. For ees443ep1, attacks are estimated near 2^128 work.</p>
+      <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. The (443, 2048, 143) parameters used here come from Hoffstein, Pipher, Schanck, Silverman, Whyte &amp; Zhang, <a href="https://eprint.iacr.org/2015/708" target="_blank" rel="noopener">&ldquo;Choosing Parameters for NTRUEncrypt&rdquo;</a> (ePrint 2015/708), which selects N and the weights so that the best known lattice attacks are pushed out of reach; consult that paper for the current cost estimate rather than trusting a number quoted here.</p>
       <div class="controls">
         <button id="lll-step" type="button" aria-controls="lattice-canvas lll-readout">Apply Reduction Step</button>
         <button id="lll-auto" type="button" aria-controls="lattice-canvas lll-readout">Auto-Reduce</button>
@@ -809,7 +809,12 @@ generateButtonEl.addEventListener('click', () => {
       lines.push(`Attempt ${attempt}: ${reason}${failed ? ' ✗' : ' ✓'}`);
     });
 
-    lines.unshift('Parameters: N=443, p=3, q=2048, df=143, dg=143, dr=143');
+    lines.unshift(
+      'Parameters: N=443, p=3, q=2048, df=143, dg=143, dr=143 ' +
+        '(the (443, 2048, 143) set from Hoffstein-Pipher-Schanck-Silverman-Whyte-Zhang, ' +
+        '"Choosing Parameters for NTRUEncrypt", ePrint 2015/708 - not EESS#1 ees443ep1, ' +
+        'which is product-form)',
+    );
     if (!sawFailure) {
       lines.push('No failure in this run. Non-invertible f events are expected and appear on other runs.');
     }

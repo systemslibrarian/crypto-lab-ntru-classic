@@ -11,6 +11,10 @@ All notable changes to this project are documented in this file.
 - **Honest lattice bridge** (Exhibit 3, Part B): a new `src/ntru-lattice.ts` builds a genuine small NTRU keypair (`N=5, q=32`, real ternary `f`/`g`, real inverse, real `h = p·F_q·g`), assembles its true 2N-dimensional public lattice from `h` alone, and runs real LLL that recovers the private key as the short vector — demonstrating "breaking NTRU = finding the short vector" instead of asserting it. Backed by 6 new Vitest cases (52 total).
 - **"Why it matters" column** in the Exhibit 4 comparison table, turning each row into the tradeoff it implies (e.g. NTT-friendly `X^n+1`).
 
+### Fixed
+- **Parameter attribution corrected.** The `N=443, p=3, q=2048, df=dg=dr=143` set was labelled "EESS#1 v3.3 ees443ep1" throughout (README, UI, verify script, tests). That is wrong: `ees443ep1` is a *product-form* set (`df1=9, df2=8, df3=5`, `dg=148`) per libntru's `src/encparams.c`, and has no single `df=143`. The numbers used are the `(443, 2048, 143)` set from Hoffstein, Pipher, Schanck, Silverman, Whyte & Zhang, "Choosing Parameters for NTRUEncrypt" (ePrint 2015/708), which is now what the demo cites. No parameter values changed.
+- Removed the unsourced "decryption failures ~2^-80 for ees443ep1" figure, which hung off the same bad label; the warning now explains the ±q/2 wraparound mechanism without asserting an unverified probability. The lattice-attack note likewise points readers at the parameter-selection paper instead of quoting a bare "2^128".
+
 ### Changed
 - Exhibit 1 retitled "Build the Keypair" and reframed around meeting `f` and `h`, with an interpretive note on why the short/sparse `f` looks nothing like the noisy `h`.
 - Locked-equation styling signals state via badge, dashed border and background (never lowered text opacity), preserving WCAG AA contrast in the axe gate.

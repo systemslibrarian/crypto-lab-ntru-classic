@@ -2,9 +2,9 @@
 
 ## What It Is
 
-Browser-based NTRU demo implementing the original 1996 Hoffstein-Pipher-Silverman lattice cryptosystem with EESS#1 v3.3 ees443ep1 parameters.
+Browser-based NTRU demo implementing the original 1996 Hoffstein-Pipher-Silverman lattice cryptosystem at the (N = 443, q = 2048, d = 143) parameter size.
 
-This project is a browser-based educational implementation of NTRU Classic using the original scheme family described by Hoffstein, Pipher, and Silverman, with ees443ep1 parameters:
+This project is a browser-based educational implementation of NTRU Classic using the original scheme family described by Hoffstein, Pipher, and Silverman, with these fixed-weight ternary parameters:
 
 - N = 443
 - p = 3
@@ -12,6 +12,17 @@ This project is a browser-based educational implementation of NTRU Classic using
 - df = 143
 - dg = 143
 - dr = 143
+
+These are the `(443, 2048, 143)` values from Hoffstein, Pipher, Schanck, Silverman, Whyte
+and Zhang, ["Choosing Parameters for NTRUEncrypt"](https://eprint.iacr.org/2015/708)
+(IACR ePrint 2015/708 / CT-RSA 2017).
+
+They are **not** the EESS#1 v3.3 set named `ees443ep1`, and earlier versions of this README
+said otherwise. `ees443ep1` shares `N = 443` and `q = 2048` but is a *product-form* set: its
+private key is built from `df1 = 9, df2 = 8, df3 = 5` and its `dg` is 148, not 143 (see
+libntru's [`src/encparams.c`](https://github.com/tbuktu/libntru/blob/master/src/encparams.c),
+which implements EESS#1 v3.3). There is no single `df = 143` in that set. The numbers this
+demo uses have never changed — only the citation has been corrected.
 
 All polynomial arithmetic is implemented from scratch with `Int32Array` coefficients in the ring `Z[X]/(X^N - 1)`, including:
 
@@ -41,7 +52,7 @@ The demo runs the full NTRU Classic flow in the browser: watch probabilistic key
 
 ## What Can Go Wrong
 
-- Decryption failures are possible (rare, around 2^-80 for ees443ep1).
+- Decryption failures are possible: a coefficient of `p·r·g + f·m` can fall outside the ±q/2 window and wrap. Parameter selection drives that probability down to a negligible level, but never to zero.
 - Key generation is probabilistic; some candidate `f` values are discarded.
 - This TypeScript demo is not constant-time and can leak timing structure.
 - Parameter choice matters; weaker historical parameter sets are no longer secure.

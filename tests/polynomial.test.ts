@@ -105,7 +105,7 @@ describe('randomTernary', () => {
     expect(zero).toBe(N - dp - dm);
   });
 
-  it('uses ees443ep1 counts without error', () => {
+  it('uses the (443, 2048, 143) counts without error', () => {
     const poly = randomTernary(NTRU_PARAMS.N, NTRU_PARAMS.df, NTRU_PARAMS.df - 1);
     expect(poly.length).toBe(NTRU_PARAMS.N);
   });

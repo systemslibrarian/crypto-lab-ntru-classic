@@ -78,7 +78,7 @@ const paramsPass =
   NTRU_PARAMS.df === 143 &&
   NTRU_PARAMS.dg === 143 &&
   NTRU_PARAMS.dr === 143;
-results.push(`10. ees443ep1 parameter set exact: ${paramsPass ? 'PASS' : 'FAIL'}`);
+results.push(`10. (443, 2048, 143) parameter set exact: ${paramsPass ? 'PASS' : 'FAIL'}`);
 
 let latticePass = true;
 for (let i = 0; i < 200; i += 1) {
