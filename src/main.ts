@@ -254,7 +254,7 @@ app.innerHTML = `
 
     <section class="card" id="exhibit4">
       <h2>Exhibit 4: NTRU Classic vs Kyber</h2>
-      <div class="table-wrap">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Comparison of NTRU Classic and ML-KEM-768 (scrollable table)">
       <table>
         <caption>Comparison of NTRU Classic and ML-KEM-768, with the tradeoff each row implies</caption>
         <thead><tr><th scope="col">Property</th><th scope="col">NTRU Classic (1996)</th><th scope="col">ML-KEM-768 (2024)</th><th scope="col">Why it matters</th></tr></thead>
