@@ -43,6 +43,8 @@ export interface LatticeBridge {
   reduced: number[][];
   /** Index into `reduced` of the row that recovers the key. */
   shortestIndex: number;
+  /** Whether a reduced row was actually proven equal to the key up to symmetry. */
+  found: boolean;
   /** How the recovered row relates to (p·g ‖ f): a rotation and a sign. */
   recovery: { sign: 1 | -1; rotation: number };
 }
@@ -210,6 +212,7 @@ export function buildLatticeBridge(): LatticeBridge {
 
   // Identify which reduced row is ±(a rotation of) the key (p·g ‖ f).
   let shortestIndex = 0;
+  let found = false;
   let recovery: { sign: 1 | -1; rotation: number } = { sign: 1, rotation: 0 };
   outer: for (let idx = 0; idx < reducedRaw.length; idx += 1) {
     const first = reducedRaw[idx].slice(0, N);
@@ -224,6 +227,7 @@ export function buildLatticeBridge(): LatticeBridge {
         ) {
           shortestIndex = idx;
           recovery = { sign, rotation: s };
+          found = true;
           break outer;
         }
       }
@@ -241,6 +245,7 @@ export function buildLatticeBridge(): LatticeBridge {
     basis,
     reduced: reducedRaw,
     shortestIndex,
+    found,
     recovery,
   };
 }

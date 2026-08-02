@@ -29,6 +29,16 @@ body {
     linear-gradient(180deg, #060911 0, #090f18 100%);
 }
 
+#app a {
+  color: #ffffff;
+  text-decoration-thickness: 0.12em;
+}
+
+.paper-link {
+  background: #000000;
+  padding: 0 0.15em;
+}
+
 #app {
   width: min(1200px, 100% - 2rem);
   margin: 1rem auto 2rem;

@@ -56,3 +56,13 @@ test('no WCAG A/AA violations in light theme', async ({ page }) => {
   await expandAll(page);
   await scan(page);
 });
+
+test('lattice attack reports only its checked recovery outcome', async ({ page }) => {
+  await page.goto('.');
+  await page.locator('#bridge-attack').click();
+  const result = page.locator('#bridge-result');
+  await expect(result).toContainText(/LLL (recovered|did not recover) the key/);
+  if ((await result.textContent())?.includes('recovered the key')) {
+    await expect(result).toContainText(/exact match|valid private key/);
+  }
+});

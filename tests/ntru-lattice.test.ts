@@ -60,6 +60,7 @@ describe('ntru lattice bridge (honest small instance)', () => {
     for (let trial = 0; trial < 25; trial += 1) {
       const bridge = buildLatticeBridge();
       const { N, f, g, p, reduced, shortestIndex, recovery } = bridge;
+      expect(bridge.found).toBe(true);
       const row = reduced[shortestIndex];
       expect(row).toBeDefined();
       const first = row.slice(0, N);

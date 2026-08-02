@@ -213,7 +213,7 @@ app.innerHTML = `
 
       <h3 class="step-h">Part A — the geometry: reducing a basis finds a short vector</h3>
       <p>Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step. Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
-      <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. The (443, 2048, 143) parameters used here come from Hoffstein, Pipher, Schanck, Silverman, Whyte &amp; Zhang, <a href="https://eprint.iacr.org/2015/708" target="_blank" rel="noopener">&ldquo;Choosing Parameters for NTRUEncrypt&rdquo;</a> (ePrint 2015/708), which selects N and the weights so that the best known lattice attacks are pushed out of reach; consult that paper for the current cost estimate rather than trusting a number quoted here.</p>
+      <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. The (443, 2048, 143) parameters used here come from Hoffstein, Pipher, Schanck, Silverman, Whyte &amp; Zhang, <a class="paper-link" href="https://eprint.iacr.org/2015/708" target="_blank" rel="noopener">&ldquo;Choosing Parameters for NTRUEncrypt&rdquo;</a> (ePrint 2015/708), which selects N and the weights so that the best known lattice attacks are pushed out of reach; consult that paper for the current cost estimate rather than trusting a number quoted here.</p>
       <div class="controls">
         <button id="lll-step" type="button" aria-controls="lattice-canvas lll-readout">Apply Reduction Step</button>
         <button id="lll-auto" type="button" aria-controls="lattice-canvas lll-readout">Auto-Reduce</button>
@@ -1205,6 +1205,19 @@ function runBridgeAttack(): void {
   const row = b.reduced[b.shortestIndex];
   const recFirst = row.slice(0, b.N);
   const recSecond = row.slice(b.N);
+  if (!b.found) {
+    if (bridgeSecretEl) {
+      bridgeSecretEl.textContent = `secret f = ${fmtVec(b.f)}   ·   p·g = ${fmtVec(pg)}`;
+    }
+    bridgeResultEl.innerHTML = `
+      <p class="bridge-hint"><b>LLL did not recover the key in this run.</b> The shortest reduced vector was:</p>
+      <p class="bridge-line">shortest = ( ${fmtVec(recFirst)} ‖ ${fmtVec(recSecond)} )</p>
+      <p class="bridge-hint">It was checked against every sign and cyclic rotation of (p·g ‖ f), and no match was found. Generate another tiny instance to try again.</p>`;
+    if (bridgeStateEl) {
+      setStatus(bridgeStateEl, 'Attack complete: no matching private-key vector was found.', 'neutral');
+    }
+    return;
+  }
   const rotNote =
     b.recovery.rotation === 0 && b.recovery.sign === 1
       ? 'an exact match'
