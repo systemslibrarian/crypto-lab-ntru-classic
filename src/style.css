@@ -144,7 +144,9 @@ input {
   width: 100%;
   margin-top: 0.35rem;
   border-radius: 0.5rem;
-  border: 1px solid #304158;
+  /* Field boundary: >=3:1 against the field fill and every stop of the page
+     gradient behind it (WCAG 2.1 SC 1.4.11). */
+  border: 1px solid #6d86b0;
   background: #0a121f;
   color: var(--text);
   padding: 0.5rem 0.7rem;
