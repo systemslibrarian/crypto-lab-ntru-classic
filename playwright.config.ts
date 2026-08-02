@@ -12,7 +12,10 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
   webServer: {
-    command: 'npm run preview -- --port 4252 --strictPort',
+    // Build before serving: `vite preview` only serves whatever is already in
+    // dist/, so without this a failing build leaves the previous good bundle in
+    // place and the suite passes green against code that no longer compiles.
+    command: 'npm run build && npm run preview -- --port 4252 --strictPort',
     url: 'http://localhost:4252/crypto-lab-ntru-classic/',
     reuseExistingServer: !process.env.CI,
   },
