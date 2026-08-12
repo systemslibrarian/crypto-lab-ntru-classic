@@ -19,7 +19,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.2.0",
-    "happy-dom": "^20.10.6",
+    "happy-dom": "^20.11.2",
     "tsx": "^4.22.4",
     "typescript": "~6.0.2",
     "vite": "^8.0.4",
