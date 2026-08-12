@@ -60,8 +60,19 @@ body {
   left: 1rem;
 }
 
+/* `minmax(0, 1fr)`, not the implicit `auto` track. A bare single-column grid
+   gives its one track an AUTOMATIC MINIMUM equal to the min-content of its
+   widest item, and every exhibit here is a `.card` containing something that is
+   meant to scroll inside itself: `#keygen-log` is a `<pre>` whose parameter line
+   is ~1800px unwrapped, and the comparison table's cells take `min-width: 140px`
+   below 720px. The card is the grid item, not the scroller, so those minimums
+   propagated straight out to the track — the DOCUMENT scrolled sideways to
+   1903px at 1280 the moment a keypair was generated, and to 597px at 380 on
+   arrival (WCAG 1.4.10). `minmax(0, …)` removes the floor and lets each
+   scroller scroll. */
 .lab {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 
@@ -167,6 +178,16 @@ input {
 
 .status.warn {
   color: var(--warn);
+}
+
+/* Both `.log` boxes are `overflow: auto` under a cap, so they become scrolling
+   regions as soon as there is enough content — which makes them keyboard
+   targets (WCAG 2.1.1) and therefore things that need a VISIBLE focus
+   indicator (WCAG 2.4.7). The `:focus-visible` rule higher up covers only
+   `button` and `input`. */
+.log:focus-visible {
+  outline: 3px solid #ffd700;
+  outline-offset: 2px;
 }
 
 .log {
@@ -459,9 +480,18 @@ input[aria-invalid='true'] {
   background: #0a1424;
 }
 
+/* `flex: 0 1 auto` with `min-width: 0`, not `flex: 0 0 auto`. A flex item's base
+   size is its MAX-content when the basis is `auto`, and `flex-shrink: 0` then
+   refuses to give any of it back — so the widest figcaption ("a = ⟨f·e⟩ —
+   lifted, with ±q/2 danger zone") sized the cell to 384px inside a 322px card
+   at 380px, and the document scrolled sideways (WCAG 1.4.10). Shrink plus a
+   zeroed `min-width` lets the caption wrap; the canvas inside is already
+   `width: 100%`. */
 .pipe-cell {
   margin: 0;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid #222c40;
   border-radius: 0.5rem;
   padding: 0.4rem;

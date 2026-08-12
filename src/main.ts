@@ -78,7 +78,7 @@ app.innerHTML = `
         <button id="generate-keypair" type="button" aria-controls="keygen-log ring-public ring-private">Generate Keypair</button>
         <span id="keygen-summary" class="status neutral" role="status" aria-live="polite">No keypair generated yet.</span>
       </div>
-      <pre id="keygen-log" class="log" aria-live="polite"></pre>
+      <pre id="keygen-log" class="log" role="region" aria-label="Key generation attempt log" tabindex="0" aria-live="polite"></pre>
       <div class="ring-grid">
         <figure>
           <figcaption>Public key h — noisy (gold = coefficient size mod q)</figcaption>
@@ -225,7 +225,7 @@ app.innerHTML = `
           <figcaption>2D lattice with current basis (b₁ cyan, b₂ magenta, shortest highlighted)</figcaption>
           <canvas id="lattice-canvas" width="520" height="360" role="img" aria-label="2D toy lattice visualization"></canvas>
         </figure>
-        <pre id="lll-readout" class="log lattice-readout" role="status" aria-live="polite"></pre>
+        <pre id="lll-readout" class="log lattice-readout" role="status" aria-label="Lattice reduction readout" tabindex="0" aria-live="polite"></pre>
       </div>
 
       <h3 class="step-h">Part B — the bridge: this short vector <em>is</em> the NTRU key</h3>
