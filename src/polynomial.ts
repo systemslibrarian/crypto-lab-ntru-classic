@@ -1,19 +1,19 @@
 export type Polynomial = Int32Array;
 
 /**
- * Fixed-weight ternary NTRU parameter set used throughout the demo.
+ * Fixed-weight educational profile used throughout the demo.
  *
- * Attribution: these are the (N = 443, q = 2048, d = 143) values from
- * Hoffstein, Pipher, Schanck, Silverman, Whyte & Zhang, "Choosing Parameters
- * for NTRUEncrypt" (IACR ePrint 2015/708 / CT-RSA 2017).
+ * The original HPS paper defines L_f = L(df, df - 1), L_g = L(dg, dg), and
+ * L_phi = L(d, d). This demo follows those coefficient shapes and chooses
+ * df = dg = dr = 143. Its N = 443, p = 3, q = 2048 scale and the number 143
+ * echo Table 1's NTRU-443 row in the first-round NTRUEncrypt submission, but
+ * this combination is an educational hybrid rather than a published profile.
  *
- * They are deliberately NOT the EESS#1 v3.3 set named `ees443ep1`. That set
- * shares N = 443 and q = 2048 but is a *product-form* set: its private-key
- * polynomial is built from df1 = 9, df2 = 8, df3 = 5 (see libntru's
- * `src/encparams.c`, which implements EESS#1 v3.3), and its dg is 148, not 143.
- * There is no single df = 143 in ees443ep1, so calling this set by that name
- * would be wrong. Earlier versions of this demo did; the numbers never changed,
- * only the citation.
+ * It is not an implementation of the submitted ntru-pke-443 scheme. That
+ * construction used h = g/(p f + 1), padding, message masking, deterministic
+ * coins, and decrypt-and-verify rejection that are absent here. Its security
+ * estimates therefore do not transfer to this teaching profile. The N = 443
+ * row in ePrint 2015/708 is also product-form, not this flat distribution.
  */
 export const NTRU_PARAMS = {
   N: 443,
@@ -123,12 +123,16 @@ export function subtract(a: Polynomial, b: Polynomial, m: number): Polynomial {
   return out;
 }
 
-function randomIntExclusive(maxExclusive: number): number {
-  if (!Number.isInteger(maxExclusive) || maxExclusive <= 0) {
-    throw new Error('maxExclusive must be a positive integer');
+export function randomIntExclusive(maxExclusive: number): number {
+  const maxUint = 0x1_0000_0000;
+  if (
+    !Number.isSafeInteger(maxExclusive) ||
+    maxExclusive <= 0 ||
+    maxExclusive > maxUint
+  ) {
+    throw new Error('maxExclusive must be an integer in [1, 2^32]');
   }
 
-  const maxUint = 0x1_0000_0000;
   const limit = maxUint - (maxUint % maxExclusive);
   const buf = new Uint32Array(1);
 
@@ -143,7 +147,16 @@ function randomIntExclusive(maxExclusive: number): number {
 
 /** Random ternary poly with exactly dp +1, dm -1, rest 0. */
 export function randomTernary(N: number, dp: number, dm: number): Polynomial {
-  if (dp < 0 || dm < 0 || dp + dm > N) {
+  if (
+    !Number.isSafeInteger(N) ||
+    !Number.isSafeInteger(dp) ||
+    !Number.isSafeInteger(dm) ||
+    N <= 0 ||
+    N > 0x1_0000_0000 ||
+    dp < 0 ||
+    dm < 0 ||
+    dp + dm > N
+  ) {
     throw new Error('Invalid ternary counts');
   }
 

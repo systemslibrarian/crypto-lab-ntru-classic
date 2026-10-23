@@ -74,6 +74,10 @@ function snapshot(
  * states (including the initial state) so the UI can step through it.
  */
 export function gaussReduce(start1: Vec2, start2: Vec2, maxSteps = 64): ReductionStep[] {
+  if (!Number.isSafeInteger(maxSteps) || maxSteps < 0) {
+    throw new Error('maxSteps must be a non-negative integer');
+  }
+
   let b1: Vec2 = { ...start1 };
   let b2: Vec2 = { ...start2 };
 
@@ -106,7 +110,8 @@ export function gaussReduce(start1: Vec2, start2: Vec2, maxSteps = 64): Reductio
     trace.push(snapshot(b1, b2, `Size-reduce: b₂ ← b₂ − ${mu}·b₁`, mu, false, false));
   }
 
-  trace[trace.length - 1].done = true;
+  const last = trace[trace.length - 1];
+  last.description = `${last.description} → step limit reached before reduction was proved`;
   return trace;
 }
 

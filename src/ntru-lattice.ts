@@ -11,15 +11,16 @@
  *
  * Nothing here is faked. The reduced short row is literally ±(a cyclic rotation
  * of) (p·g, f), which is an equally valid NTRU private key — the rotation/sign
- * ambiguity is a true property of NTRU, not a shortcut. "Breaking NTRU = finding
- * the short vector" stops being a sentence and becomes something you watch land.
+ * ambiguity is a true property of NTRU, not a shortcut. The tiny instance makes
+ * one lattice attack route concrete: reduction can expose a useful short
+ * private-key vector without being given the secret.
  *
- * The full-strength scheme (N=443, q=2048) lives in ntru.ts and is untouched;
- * this is a scaled-down *illustration of the attack geometry*, clearly labelled
- * as such in the UI, never a replacement for the real parameters.
+ * The larger teaching profile (N=443, q=2048) lives in ntru.ts; this is a
+ * scaled-down *illustration of the attack geometry*, clearly labelled as such
+ * in the UI. Neither instance claims a production security level.
  */
 import { inverseModP, inverseModQ } from './inverse';
-import { modPos, multiply, type Polynomial } from './polynomial';
+import { modPos, multiply, randomIntExclusive, type Polynomial } from './polynomial';
 
 /** Small but real parameters. N and q are tiny so the 2N-dim lattice fits on
  * screen and LLL runs instantly; p=3 is the real NTRU value. */
@@ -72,10 +73,8 @@ function rotate(a: number[], shift: number): number[] {
  * (split as evenly as possible between +1 and −1). */
 function randomSmallTernary(N: number, d: number): number[] {
   const idx = Array.from({ length: N }, (_, i) => i);
-  const buf = new Uint32Array(1);
   for (let i = N - 1; i > 0; i -= 1) {
-    crypto.getRandomValues(buf);
-    const j = buf[0] % (i + 1);
+    const j = randomIntExclusive(i + 1);
     [idx[i], idx[j]] = [idx[j], idx[i]];
   }
   const poly = new Array<number>(N).fill(0);

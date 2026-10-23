@@ -25,13 +25,17 @@ describe('inverseModP', () => {
   });
 
   it('inverts a small known-invertible element', () => {
-    // 1 + X in Z[X]/(X^3 - 1) mod 2 — small sanity case.
-    const f = new Int32Array([1, 1, 0]);
+    // X has inverse X^2 in Z[X]/(X^3 - 1).
+    const f = new Int32Array([0, 1, 0]);
     const inv = inverseModP(f, 3, 2);
-    if (inv) {
-      expect(isInverse(f, inv, 3, 2)).toBe(true);
-    }
-    // (1 + X)(1 + X + X^2) ... we only assert self-consistency when invertible.
+    expect(inv).not.toBeNull();
+    expect(Array.from(inv as Polynomial)).toEqual([0, 0, 1]);
+    expect(isInverse(f, inv as Polynomial, 3, 2)).toBe(true);
+  });
+
+  it('rejects malformed shapes and a composite p', () => {
+    expect(() => inverseModP(new Int32Array(2), 3, 3)).toThrow(/length 3/);
+    expect(() => inverseModP(new Int32Array(3), 3, 4)).toThrow(/prime/);
   });
 });
 
@@ -46,6 +50,8 @@ describe('inverseModQ (Hensel lifting, q = 2048)', () => {
   it('rejects a non power-of-two modulus', () => {
     const f = randomTernary(NTRU_PARAMS.N, NTRU_PARAMS.df, NTRU_PARAMS.df - 1);
     expect(() => inverseModQ(f, NTRU_PARAMS.N, 2047)).toThrow();
+    expect(() => inverseModQ(f, NTRU_PARAMS.N, 0)).toThrow();
+    expect(() => inverseModQ(f, NTRU_PARAMS.N, 1)).toThrow();
   });
 
   it('returns null when f is singular mod 2', () => {
