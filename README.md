@@ -2,27 +2,22 @@
 
 ## What It Is
 
-Browser-based NTRU demo implementing the original 1996 Hoffstein-Pipher-Silverman lattice cryptosystem at the (N = 443, q = 2048, d = 143) parameter size.
+Browser-based educational demo of the original Hoffstein-Pipher-Silverman NTRU equations at `N = 443`, `p = 3`, `q = 2048`, and demo-selected weights `df = dg = dr = 143`. It is a raw teaching construction, not a published parameter set or a submitted/standardized NTRU PKE/KEM, and it claims no production security level.
 
-This project is a browser-based educational implementation of NTRU Classic using the original scheme family described by Hoffstein, Pipher, and Silverman, with these fixed-weight ternary parameters:
+The code uses the original-style public-key equation `h = p · f⁻¹ · g (mod q)` with these fixed-weight distributions:
 
 - N = 443
 - p = 3
 - q = 2048
-- df = 143
-- dg = 143
-- dr = 143
+- df = dg = dr = 143
+- `f ∈ L(df, df − 1)`: 143 coefficients are +1 and 142 are −1
+- `g ∈ L(dg, dg)` and `r ∈ L(dr, dr)`: 143 coefficients of each sign
 
-These are the `(443, 2048, 143)` values from Hoffstein, Pipher, Schanck, Silverman, Whyte
-and Zhang, ["Choosing Parameters for NTRUEncrypt"](https://eprint.iacr.org/2015/708)
-(IACR ePrint 2015/708 / CT-RSA 2017).
+The coefficient shapes come from the [original HPS paper](https://www.ntru.org/f/hps98.pdf), which defines `L_f = L(df, df − 1)`, `L_g = L(dg, dg)`, and the blinding space `L_φ = L(d, d)`. The demo itself chooses 143 for all three weights. Its `N = 443`, `p = 3`, `q = 2048` scale and the numeral 143 echo NTRU-443 in Table 1 of the official [first-round NTRUEncrypt supporting package](https://www.ntru.org/f/NTRUEncrypt.zip), but combining those values with the original equations is an educational hybrid—not the published NTRU-443 profile.
 
-They are **not** the EESS#1 v3.3 set named `ees443ep1`, and earlier versions of this README
-said otherwise. `ees443ep1` shares `N = 443` and `q = 2048` but is a *product-form* set: its
-private key is built from `df1 = 9, df2 = 8, df3 = 5` and its `dg` is 148, not 143 (see
-libntru's [`src/encparams.c`](https://github.com/tbuktu/libntru/blob/master/src/encparams.c),
-which implements EESS#1 v3.3). There is no single `df = 143` in that set. The numbers this
-demo uses have never changed — only the citation has been corrected.
+The submitted scheme used `h = g/(p f + 1)`, padding, message masking, deterministic coins, and decrypt-and-verify rejection; this demo instead uses the raw equation above, a custom six-trit byte encoding, fresh random `r`, and no ciphertext validation. Its security and decryption-failure estimates therefore do not transfer.
+
+Earlier revisions first mislabeled the profile as EESS#1 `ees443ep1`, then incorrectly moved the attribution to [ePrint 2015/708](https://eprint.iacr.org/2015/708). Neither is the source of this flat profile: `ees443ep1` is product-form, and the paper's `N = 443` row uses `(d1, d2, d3, dg, dm) = (9, 8, 5, 148, 115)`. No security or decryption-failure estimate from either construction applies to this demo.
 
 All polynomial arithmetic is implemented from scratch with `Int32Array` coefficients in the ring `Z[X]/(X^N - 1)`, including:
 
@@ -34,7 +29,7 @@ The demo explicitly shows probabilistic key generation retries when `f` is not i
 
 `f · e ≡ p·r·g + f·m (mod q)`
 
-It is built for two audiences at once. A newcomer gets a plain-language on-ramp — a "What is NTRU?" intro that states the one-sentence idea before any algebra, a message-encoding-first Exhibit 2 whose four equations stay locked and dimmed until the objects they describe are drawn on screen, and an animated decryption pipeline with a visible ±q/2 wraparound danger zone. A professional gets the load-bearing details kept honest: a real (not asserted) lattice attack that builds a genuine small NTRU keypair, assembles its 2N-dimensional public lattice from `h` alone, and runs real LLL that recovers the private key as the lattice's short vector — up to the true rotation/sign symmetry of the scheme.
+It is built for two audiences at once. A newcomer gets a plain-language on-ramp, a message-encoding-first Exhibit 2 whose four equations unlock only when their objects exist, and an animated decryption pipeline with a visible ±q/2 wraparound danger zone. A professional gets the construction boundary stated explicitly and a computed small-instance lattice exercise: it builds a genuine tiny NTRU keypair, assembles its 2N-dimensional public lattice from `h` alone, and checks whether real LLL recovers a useful private-key vector up to rotation and sign.
 
 ## When to Use It
 
@@ -48,23 +43,28 @@ It is built for two audiences at once. A newcomer gets a plain-language on-ramp 
 
 **[systemslibrarian.github.io/crypto-lab-ntru-classic](https://systemslibrarian.github.io/crypto-lab-ntru-classic/)**
 
-The demo runs the full NTRU Classic flow in the browser: watch probabilistic key generation discard non-invertible `f`, encode a string to a ternary polynomial, then encrypt, decrypt, and tamper, with a collapsible decryption walkthrough that typesets the algebra and verifies the `f · e ≡ p·r·g + f·m (mod q)` identity with live values. A live Gauss–Lagrange 2D lattice reduction (the analogue of LLL), a comparison table against ML-KEM-768, and a historical timeline round out the exhibits.
+The demo runs its raw NTRU teaching flow in the browser: watch probabilistic key generation discard non-invertible `f`, encode a string to a ternary polynomial, then encrypt, decrypt, and corrupt a ciphertext. A collapsible walkthrough verifies `f · e ≡ p·r·g + f·m (mod q)` with live values and makes clear that corruption is recognized only because the page retained the original plaintext. A live Gauss–Lagrange 2D reduction, a tiny computed NTRU lattice, a construction-aware ML-KEM-768 comparison, and a historical timeline round out the exhibits.
 
 ## What Can Go Wrong
 
-- Decryption failures are possible: a coefficient of `p·r·g + f·m` can fall outside the ±q/2 window and wrap. Parameter selection drives that probability down to a negligible level, but never to zero.
+- This raw profile can suffer decryption failure when a coefficient of `p·r·g + f·m` crosses the ±q/2 window. The demo has no derived failure bound; 100 passing trials are only a regression check.
 - Key generation is probabilistic; some candidate `f` values are discarded.
 - This TypeScript demo is not constant-time and can leak timing structure.
-- Parameter choice matters; weaker historical parameter sets are no longer secure.
-- Classical NTRU is IND-CPA. Modern KEMs add transforms (for example FO-style) for IND-CCA security.
+- The raw ciphertext has no authentication or standalone integrity check. The tamper exercise can report a difference only because the page retained the original plaintext.
+- The hybrid profile does not carry over NTRU-443's security estimate because the construction, distributions, encoding, and validation behavior differ.
+- Do not assign this code an IND-CPA or IND-CCA label without a proof for its exact construction. It intentionally omits the transforms and validation used by deployable schemes.
 
 ## Real-World Usage
 
 - NTRU was introduced in 1996 by Jeffrey Hoffstein, Jill Pipher, and Joseph Silverman at Brown University.
 - 1996–1998: invention, CRYPTO rump-session presentation, and ANTS-III publication.
-- 2009–2011: IEEE P1363.1 standardization and ANSI X9.98 adoption in finance.
-- 2017: US patent expiration; 2020: NIST PQC finalist.
+- 2007: NIST's third-round report records the NTRU US patents as dedicated to the public.
+- 2008–2009: [IEEE 1363.1-2008](https://standards.ieee.org/ieee/4/3074/) was approved and published; IEEE now lists it as inactive-reserved.
+- 2010: [ANSI X9.98-2010](https://webstore.ansi.org/standards/ascx9/ANSIX9982010) specified lattice-based polynomial public-key establishment for financial services; the store lists it as historical and reaffirmed in 2017.
+- 2017–2022: NTRU entered the NIST PQC process, advanced as a third-round finalist, and was not selected after round three. NIST identified key-generation performance as a significant selection factor and noted more security evidence for structured Module-LWE.
 - 2024: ML-KEM (Kyber) standardized as FIPS 203. NTRU remains historically foundational and pedagogically important for understanding modern lattice cryptography.
+
+See [NIST IR 8413-upd1](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591) for the selection and patent-history statements, and [FIPS 203](https://csrc.nist.gov/pubs/fips/203/final) for ML-KEM.
 
 ## How to Run Locally
 
@@ -84,12 +84,12 @@ npm run dev
 
 ## Exhibits
 
-A short **"What is NTRU?" intro** opens the page above Exhibit 1, stating the one-sentence idea — the public key `h` looks like noise, the private key `f` is a secret *short* pattern, and only someone who knows `f` can cleanly unscramble — before any math, then mapping how the exhibits earn the algebra.
+A short **"What is NTRU?" intro** opens the page above Exhibit 1: public `h` looks noisy, private `f` is short, and `f` supplies the trapdoor that reverses the public scrambling operation.
 
-1. **Build the keypair** — watch the retry loop discard non-invertible `f`, with ring visualizations of the public key `h` and (censored) private key `f`, and a side-by-side reading of *why* the short/sparse `f` looks nothing like the noisy `h` that multiplying and inverting mod `q` produces.
+1. **Build the keypair** — watch the retry loop discard non-invertible `f`, with ring visualizations of public `h` and private `f`. The page gives the exact 143/142/158 coefficient profile rather than incorrectly calling `f` sparse.
 2. **Encrypt and decrypt** — message-encoding first: encode a string to a **ternary** polynomial (with a note motivating `p = 3`), then encrypt, decrypt, and tamper. The four scheme equations are typeset with KaTeX but stay **locked and dimmed until their inputs appear on screen**, unlocking in sequence (`h` → `e` → identity → recovery), each with a hover glossary for every symbol. An animated **decryption pipeline** flows the real polynomials left to right — `e → a` (with a visible ±q/2 wraparound **danger zone**) → `mod p` → `F_p` → `m'` — and a collapsible **walkthrough** shows the algebra with live values, a verified `f · e ≡ p·r·g + f·m (mod q)` identity check, and the per-ciphertext decryption margin before wraparound. Hovering any ring reveals individual coefficients.
-3. **The lattice perspective** — *Part A* is a live, honest **Gauss–Lagrange reduction** of a 2D lattice (the exact analogue of LLL): step or auto-run it; the basis vectors shrink onto a fixed lattice while the determinant stays invariant and `b₁` converges to a shortest vector. *Part B* is the **bridge**: a genuine, fully worked small NTRU key (real ternary `f`, `g`, a real inverse, real `h = p·F_q·g` at `N=5, q=32`), its true 10-dimensional public lattice built only from `h`, and a real LLL **Attack** that recovers the private key as the short vector — proving "breaking NTRU = finding the short vector" instead of asserting it.
-4. **NTRU Classic vs ML-KEM-768** — a comparison table, now with a **"why it matters"** column that turns each row into the tradeoff it implies (e.g. why Kyber's NTT-friendly `X^n+1` ring is faster).
+3. **The lattice perspective** — *Part A* is a live **Gauss–Lagrange reduction** of a 2D lattice: the basis shrinks while its determinant remains invariant. *Part B* builds a genuine small NTRU key (`N=5, q=32`), its true 10-dimensional public lattice from `h` alone, and runs LLL to test recovery of an equivalent short private-key vector.
+4. **Raw NTRU teaching profile vs ML-KEM-768** — a comparison table that distinguishes an in-memory teaching construction from a standardized byte-level KEM.
 5. **Historical impact and patent story** — a timeline.
 
 ## Development
@@ -97,12 +97,12 @@ A short **"What is NTRU?" intro** opens the page above Exhibit 1, stating the on
 ```sh
 npm install      # install dependencies
 npm run dev      # local dev server
-npm test         # Vitest unit + DOM smoke tests (52 tests)
+npm test         # Vitest unit + DOM smoke tests (60 tests)
 npm run verify   # 12 project verification gates
 npm run build    # type-check and production build
 ```
 
-Correctness is guarded by a Vitest suite (polynomial arithmetic, inversion, encode/decode, encrypt/decrypt round-trips, the decryption identity, Gauss reduction with a 200-case fuzz, and the small-instance lattice bridge — which re-verifies `f · h ≡ p·g (mod q)` and that LLL's short vector really is the key across many random instances) plus a headless DOM smoke test that drives the full generate → encrypt → decrypt flow. CI runs the tests and verification gates before every GitHub Pages deploy, and an axe-core WCAG 2.1 AA gate scans both themes.
+Correctness is guarded by Vitest (polynomial arithmetic, fixed-weight sampling, malformed-input rejection, inversion, encode/decode, encrypt/decrypt round-trips, the decryption identity, Gauss reduction fuzzing, and the small-instance lattice bridge) plus browser behavior and axe-core WCAG 2.1 A/AA gates. CI runs unit and production-build controls on Node 22, 24, and 26, isolates Pages authority from jobs that execute repository code, and publishes only the exact bundle retained by the successful browser job.
 
 ---
 

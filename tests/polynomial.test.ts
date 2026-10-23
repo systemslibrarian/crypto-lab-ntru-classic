@@ -5,6 +5,7 @@ import {
   centerReduce,
   modPos,
   multiply,
+  randomIntExclusive,
   randomTernary,
   reduceMod,
   subtract,
@@ -105,19 +106,37 @@ describe('randomTernary', () => {
     expect(zero).toBe(N - dp - dm);
   });
 
-  it('uses the (443, 2048, 143) counts without error', () => {
+  it('uses the original-form L(df, df - 1) counts without error', () => {
     const poly = randomTernary(NTRU_PARAMS.N, NTRU_PARAMS.df, NTRU_PARAMS.df - 1);
     expect(poly.length).toBe(NTRU_PARAMS.N);
+    expect(Array.from(poly).filter((c) => c === 1)).toHaveLength(NTRU_PARAMS.df);
+    expect(Array.from(poly).filter((c) => c === -1)).toHaveLength(NTRU_PARAMS.df - 1);
   });
 
   it('rejects invalid counts', () => {
     expect(() => randomTernary(10, 6, 6)).toThrow();
     expect(() => randomTernary(10, -1, 0)).toThrow();
+    expect(() => randomTernary(10.5, 1, 1)).toThrow();
+    expect(() => randomTernary(10, 1.5, 1)).toThrow();
+    expect(() => randomTernary(0, 0, 0)).toThrow();
+    expect(() => randomTernary(2 ** 32 + 1, 1, 1)).toThrow();
   });
 
   it('does not always return the same arrangement (randomized)', () => {
     const a = randomTernary(443, 143, 142);
     const b = randomTernary(443, 143, 142);
     expect(Array.from(a)).not.toEqual(Array.from(b));
+  });
+});
+
+describe('randomIntExclusive', () => {
+  it('stays inside the requested range and rejects impossible bounds', () => {
+    for (let i = 0; i < 100; i += 1) {
+      const value = randomIntExclusive(7);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(7);
+    }
+    expect(() => randomIntExclusive(0)).toThrow();
+    expect(() => randomIntExclusive(2 ** 32 + 1)).toThrow();
   });
 });

@@ -1,4 +1,6 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { NTRU_PARAMS, modPos, multiply, randomTernary } from '../src/polynomial';
 import { inverseModP, inverseModQ, isInverse } from '../src/inverse';
 import {
@@ -12,7 +14,14 @@ import { gaussReduce, norm2, randomBadBasis } from '../src/lattice';
 
 const results: string[] = [];
 
-results.push('1. npm run build: PASS');
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const build = spawnSync(npmCommand, ['run', 'build'], { encoding: 'utf8' });
+const buildPass = build.status === 0;
+if (!buildPass) {
+  process.stderr.write(build.stdout);
+  process.stderr.write(build.stderr);
+}
+results.push(`1. npm run build executed: ${buildPass ? 'PASS' : 'FAIL'}`);
 
 const a = new Int32Array([1, 2, 0, 0]);
 const b = new Int32Array([0, 1, 1, 0]);
@@ -56,7 +65,14 @@ for (let i = 0; i < 100; i += 1) {
   }
 }
 results.push(`6. 100 round-trips random messages: ${roundtripFailures === 0 ? 'PASS' : 'FAIL'} (failures=${roundtripFailures})`);
-results.push(`7. decryption failure rate <= 1/100: ${roundtripFailures <= 1 ? 'PASS' : 'FAIL'}`);
+const count = (poly: Int32Array, coefficient: number): number =>
+  Array.from(poly).filter((value) => value === coefficient).length;
+const profilePass =
+  count(kp.privateKey.f, 1) === NTRU_PARAMS.df &&
+  count(kp.privateKey.f, -1) === NTRU_PARAMS.df - 1 &&
+  count(kp.g, 1) === NTRU_PARAMS.dg &&
+  count(kp.g, -1) === NTRU_PARAMS.dg;
+results.push(`7. f∈L(df,df−1) and g∈L(dg,dg): ${profilePass ? 'PASS' : 'FAIL'}`);
 
 const tamperMsg = randomTernary(NTRU_PARAMS.N, 70, 70);
 const encrypted = encrypt(tamperMsg, kp.publicKey);
@@ -66,10 +82,24 @@ tampered[5] = modPos(tampered[5] + 999, NTRU_PARAMS.q);
 const tamperedRecovered = decrypt(tampered, kp.privateKey);
 const tamperDiag = diagnoseDecryption(tamperMsg, tamperedRecovered);
 const tamperPass = !tamperDiag.matches && tamperDiag.differingCoefficients >= 5;
-results.push(`8. tampered ciphertext visible errors: ${tamperPass ? 'PASS' : 'FAIL'} (diffs=${tamperDiag.differingCoefficients})`);
+results.push(`8. raw ciphertext corruption changes recovery: ${tamperPass ? 'PASS' : 'FAIL'} (diffs=${tamperDiag.differingCoefficients})`);
 
-const mathRandomMatches = execSync('grep -r "Math.random" src/ | wc -l').toString().trim();
-results.push(`9. grep Math.random in src: ${mathRandomMatches === '0' ? 'PASS' : 'FAIL'} (matches=${mathRandomMatches})`);
+function countSourceText(directory: string, needle: string): number {
+  let matches = 0;
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) {
+      matches += countSourceText(path, needle);
+    } else if (entry.isFile()) {
+      matches += readFileSync(path, 'utf8').split(needle).length - 1;
+    }
+  }
+  return matches;
+}
+
+const srcDirectory = fileURLToPath(new URL('../src/', import.meta.url));
+const mathRandomMatches = countSourceText(srcDirectory, 'Math.random');
+results.push(`9. no Math.random in src: ${mathRandomMatches === 0 ? 'PASS' : 'FAIL'} (matches=${mathRandomMatches})`);
 
 const paramsPass =
   NTRU_PARAMS.N === 443 &&
@@ -78,7 +108,7 @@ const paramsPass =
   NTRU_PARAMS.df === 143 &&
   NTRU_PARAMS.dg === 143 &&
   NTRU_PARAMS.dr === 143;
-results.push(`10. (443, 2048, 143) parameter set exact: ${paramsPass ? 'PASS' : 'FAIL'}`);
+results.push(`10. educational NTRU profile values exact: ${paramsPass ? 'PASS' : 'FAIL'}`);
 
 let latticePass = true;
 for (let i = 0; i < 200; i += 1) {
