@@ -8,10 +8,11 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "npm run test:workflow-controls && tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:workflow-controls": "node --test tests/workflow-controls.node.mjs",
     "verify": "tsx scripts/verify.ts",
     "test:a11y": "playwright test"
   },

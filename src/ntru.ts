@@ -39,6 +39,38 @@ function scalePoly(poly: Polynomial, scalar: number, m: number): Polynomial {
   return out;
 }
 
+function assertLength(name: string, poly: Polynomial): void {
+  if (!(poly instanceof Int32Array) || poly.length !== NTRU_PARAMS.N) {
+    throw new Error(`${name} must be an Int32Array of length ${NTRU_PARAMS.N}`);
+  }
+}
+
+function assertTernary(name: string, poly: Polynomial): void {
+  assertLength(name, poly);
+  for (const coefficient of poly) {
+    if (coefficient !== -1 && coefficient !== 0 && coefficient !== 1) {
+      throw new Error(`${name} must contain only ternary coefficients`);
+    }
+  }
+}
+
+function assertCanonical(name: string, poly: Polynomial, modulus: number): void {
+  assertLength(name, poly);
+  for (const coefficient of poly) {
+    if (coefficient < 0 || coefficient >= modulus) {
+      throw new Error(`${name} coefficients must be in [0, ${modulus})`);
+    }
+  }
+}
+
+function assertPrivateKey(privateKey: { f: Polynomial; F_p: Polynomial }): void {
+  if (!privateKey || typeof privateKey !== 'object') {
+    throw new Error('Private key is required');
+  }
+  assertTernary('Private key f', privateKey.f);
+  assertCanonical('Private key F_p', privateKey.F_p, NTRU_PARAMS.p);
+}
+
 /**
  * Generate keypair. Retries if f not invertible.
  * onAttempt callback exposes retry loop for UI visibility.
@@ -87,6 +119,12 @@ export function generateKeyPair(
 
 /** Encode bytes as ternary polynomial (base-3 coding). */
 export function encodeMessage(bytes: Uint8Array, N: number): Polynomial {
+  if (!(bytes instanceof Uint8Array)) {
+    throw new Error('Message must be a Uint8Array');
+  }
+  if (!Number.isSafeInteger(N) || N <= 0) {
+    throw new Error('N must be a positive integer');
+  }
   const coeffsPerByte = 6;
   const needed = bytes.length * coeffsPerByte;
   if (needed > N) {
@@ -111,10 +149,21 @@ export function encodeMessage(bytes: Uint8Array, N: number): Polynomial {
 }
 
 export function decodeMessage(m: Polynomial, originalLength: number): Uint8Array {
+  if (!(m instanceof Int32Array)) {
+    throw new Error('Message polynomial must be an Int32Array');
+  }
+  if (!Number.isSafeInteger(originalLength) || originalLength < 0) {
+    throw new Error('Original length must be a non-negative integer');
+  }
   const coeffsPerByte = 6;
   const needed = originalLength * coeffsPerByte;
   if (needed > m.length) {
     throw new Error('Not enough coefficients for requested byte length');
+  }
+  for (const coefficient of m) {
+    if (coefficient !== -1 && coefficient !== 0 && coefficient !== 1) {
+      throw new Error('Message polynomial must contain only ternary coefficients');
+    }
   }
 
   const out = new Uint8Array(originalLength);
@@ -151,9 +200,8 @@ export function encrypt(
   ciphertext: Polynomial;
   blindingPoly: Polynomial;
 } {
-  if (m.length !== NTRU_PARAMS.N || publicKey.length !== NTRU_PARAMS.N) {
-    throw new Error('Polynomial length must match NTRU parameter N');
-  }
+  assertTernary('Message polynomial', m);
+  assertCanonical('Public key', publicKey, NTRU_PARAMS.q);
 
   const blindingPoly = randomTernary(
     NTRU_PARAMS.N,
@@ -178,9 +226,8 @@ export function decrypt(
   e: Polynomial,
   privateKey: { f: Polynomial; F_p: Polynomial },
 ): Polynomial {
-  if (e.length !== NTRU_PARAMS.N) {
-    throw new Error('Ciphertext length must match NTRU parameter N');
-  }
+  assertCanonical('Ciphertext', e, NTRU_PARAMS.q);
+  assertPrivateKey(privateKey);
 
   const a = centerReduce(multiply(privateKey.f, e, NTRU_PARAMS.q), NTRU_PARAMS.q);
   const b = reduceMod(a, NTRU_PARAMS.p);
@@ -241,15 +288,24 @@ export interface DecryptionWalkthrough {
  * Reproduce the decryption steps while also computing the right-hand side of
  * the identity f·e ≡ p·r·g + f·m (mod q), so the UI can show that the lift the
  * receiver computes is exactly what the algebra predicts — and how much margin
- * separated this ciphertext from a (rare) decryption failure.
+ * separated this ciphertext from modular wraparound.
  */
 export function explainDecryption(
   e: Polynomial,
   privateKey: { f: Polynomial; F_p: Polynomial },
   witness: { r: Polynomial; g: Polynomial; m: Polynomial },
 ): DecryptionWalkthrough {
+  assertCanonical('Ciphertext', e, NTRU_PARAMS.q);
+  assertPrivateKey(privateKey);
+  if (!witness || typeof witness !== 'object') {
+    throw new Error('Decryption witness is required');
+  }
+
   const { f, F_p } = privateKey;
   const { r, g, m } = witness;
+  assertTernary('Witness r', r);
+  assertTernary('Witness g', g);
+  assertTernary('Witness m', m);
 
   const a = centerReduce(multiply(f, e, NTRU_PARAMS.q), NTRU_PARAMS.q);
 
