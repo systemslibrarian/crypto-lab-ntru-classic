@@ -123,7 +123,26 @@ export function subtract(a: Polynomial, b: Polynomial, m: number): Polynomial {
   return out;
 }
 
-export function randomIntExclusive(maxExclusive: number): number {
+/** Fill one 32-bit word. Injectable so the rejection bound can be tested at its edges. */
+export type Uint32Source = (buf: Uint32Array<ArrayBuffer>) => void;
+
+const cryptoSource: Uint32Source = (buf) => {
+  crypto.getRandomValues(buf);
+};
+
+/**
+ * The rejection bound: the largest multiple of `maxExclusive` inside 32 bits.
+ * Draws below it are used; draws at or above it are discarded and redrawn.
+ */
+export function rejectionLimit(maxExclusive: number): number {
+  const maxUint = 0x1_0000_0000;
+  return maxUint - (maxUint % maxExclusive);
+}
+
+export function randomIntExclusive(
+  maxExclusive: number,
+  source: Uint32Source = cryptoSource,
+): number {
   const maxUint = 0x1_0000_0000;
   if (
     !Number.isSafeInteger(maxExclusive) ||
@@ -133,11 +152,11 @@ export function randomIntExclusive(maxExclusive: number): number {
     throw new Error('maxExclusive must be an integer in [1, 2^32]');
   }
 
-  const limit = maxUint - (maxUint % maxExclusive);
-  const buf = new Uint32Array(1);
+  const limit = rejectionLimit(maxExclusive);
+  const buf = new Uint32Array(1) as Uint32Array<ArrayBuffer>;
 
   while (true) {
-    crypto.getRandomValues(buf);
+    source(buf);
     const value = buf[0];
     if (value < limit) {
       return value % maxExclusive;
