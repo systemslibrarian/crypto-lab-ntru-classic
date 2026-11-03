@@ -1,5 +1,26 @@
 import { modPos, multiply, reduceMod, type Polynomial } from './polynomial';
 
+function assertPolynomialShape(f: Polynomial, N: number): void {
+  if (!Number.isSafeInteger(N) || N <= 0) {
+    throw new Error('N must be a positive integer');
+  }
+  if (!(f instanceof Int32Array) || f.length !== N) {
+    throw new Error(`Polynomial must be an Int32Array of length ${N}`);
+  }
+}
+
+function isPrime(value: number): boolean {
+  if (!Number.isSafeInteger(value) || value < 2) {
+    return false;
+  }
+  for (let divisor = 2; divisor * divisor <= value; divisor += 1) {
+    if (value % divisor === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function trimPoly(poly: number[]): number[] {
   let end = poly.length;
   while (end > 0 && poly[end - 1] === 0) {
@@ -122,6 +143,11 @@ export function inverseModP(
   N: number,
   p: number,
 ): Polynomial | null {
+  assertPolynomialShape(f, N);
+  if (!isPrime(p) || p > 0x7fff_ffff) {
+    throw new Error('p must be a prime representable by Int32 coefficients');
+  }
+
   const fPoly = trimPoly(Array.from(reduceMod(f, p)));
   if (fPoly.length === 0) {
     return null;
@@ -194,8 +220,14 @@ export function inverseModQ(
   N: number,
   q: number,
 ): Polynomial | null {
-  if ((q & (q - 1)) !== 0) {
-    throw new Error('q must be a power of 2');
+  assertPolynomialShape(f, N);
+  if (
+    !Number.isSafeInteger(q) ||
+    q < 2 ||
+    q > 0x8000_0000 ||
+    !Number.isInteger(Math.log2(q))
+  ) {
+    throw new Error('q must be a power of 2 in [2, 2^31]');
   }
 
   let F = inverseModP(f, N, 2);
@@ -229,7 +261,16 @@ export function isInverse(
   N: number,
   m: number,
 ): boolean {
-  if (f.length !== N || F.length !== N) {
+  if (
+    !(f instanceof Int32Array) ||
+    !(F instanceof Int32Array) ||
+    !Number.isSafeInteger(N) ||
+    N <= 0 ||
+    f.length !== N ||
+    F.length !== N ||
+    !Number.isSafeInteger(m) ||
+    m < 2
+  ) {
     return false;
   }
 

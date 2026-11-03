@@ -50,6 +50,14 @@ describe('gaussReduce', () => {
     expect(trace).toHaveLength(1);
     expect(trace[0].done).toBe(true);
   });
+
+  it('does not claim success when its explicit step budget is exhausted', () => {
+    const trace = gaussReduce({ x: 66, y: 68 }, { x: 39, y: 41 }, 0);
+    const final = trace[trace.length - 1];
+    expect(final.done).toBe(false);
+    expect(final.description).toContain('step limit reached before reduction was proved');
+    expect(() => gaussReduce({ x: 1, y: 0 }, { x: 0, y: 1 }, -1)).toThrow(/maxSteps/);
+  });
 });
 
 describe('randomBadBasis + gaussReduce (fuzz)', () => {

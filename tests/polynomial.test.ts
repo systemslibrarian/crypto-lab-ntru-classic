@@ -5,6 +5,9 @@ import {
   centerReduce,
   modPos,
   multiply,
+  randomIntExclusive,
+  rejectionLimit,
+  type Uint32Source,
   randomTernary,
   reduceMod,
   subtract,
@@ -105,19 +108,91 @@ describe('randomTernary', () => {
     expect(zero).toBe(N - dp - dm);
   });
 
-  it('uses the (443, 2048, 143) counts without error', () => {
+  it('uses the original-form L(df, df - 1) counts without error', () => {
     const poly = randomTernary(NTRU_PARAMS.N, NTRU_PARAMS.df, NTRU_PARAMS.df - 1);
     expect(poly.length).toBe(NTRU_PARAMS.N);
+    expect(Array.from(poly).filter((c) => c === 1)).toHaveLength(NTRU_PARAMS.df);
+    expect(Array.from(poly).filter((c) => c === -1)).toHaveLength(NTRU_PARAMS.df - 1);
   });
 
   it('rejects invalid counts', () => {
     expect(() => randomTernary(10, 6, 6)).toThrow();
     expect(() => randomTernary(10, -1, 0)).toThrow();
+    expect(() => randomTernary(10.5, 1, 1)).toThrow();
+    expect(() => randomTernary(10, 1.5, 1)).toThrow();
+    expect(() => randomTernary(0, 0, 0)).toThrow();
+    expect(() => randomTernary(2 ** 32 + 1, 1, 1)).toThrow();
   });
 
   it('does not always return the same arrangement (randomized)', () => {
     const a = randomTernary(443, 143, 142);
     const b = randomTernary(443, 143, 142);
     expect(Array.from(a)).not.toEqual(Array.from(b));
+  });
+});
+
+describe('randomIntExclusive rejection bound', () => {
+  /** Yields the given raw words in order, recording how many draws were taken. */
+  function feed(words: number[], calls: number[] = []): Uint32Source {
+    let i = 0;
+    return (buf) => {
+      calls.push(i);
+      buf[0] = words[Math.min(i, words.length - 1)];
+      i += 1;
+    };
+  }
+
+  // maxExclusive = 10 on purpose: 2**32 % 10 is 6, so the discarded tail is six
+  // values wide and a multi-redraw can be exercised. At 3 the tail is a single
+  // value and bound + 1 wraps to 0, which is accepted.
+  const maxExclusive = 10;
+  // Derived WITHOUT calling the code under test: taking the bound from
+  // rejectionLimit would move this expectation along with any mutation of it.
+  const bound = 0x1_0000_0000 - (0x1_0000_0000 % maxExclusive);
+
+  it('is the largest multiple of the bound inside 32 bits', () => {
+    expect(rejectionLimit(maxExclusive)).toBe(bound);
+    expect(bound % maxExclusive).toBe(0);
+    expect(0x1_0000_0000 - bound).toBe(0x1_0000_0000 % maxExclusive);
+  });
+
+  it('uses the largest accepted raw value, in one draw', () => {
+    const calls: number[] = [];
+    expect(randomIntExclusive(maxExclusive, feed([bound - 1], calls))).toBe(
+      (bound - 1) % maxExclusive,
+    );
+    expect(calls).toHaveLength(1);
+  });
+
+  it('redraws on the smallest rejected raw value, taking two draws', () => {
+    const calls: number[] = [];
+    expect(randomIntExclusive(maxExclusive, feed([bound, 7], calls))).toBe(7 % maxExclusive);
+    expect(calls).toHaveLength(2);
+  });
+
+  it('keeps redrawing while the source stays in the tail', () => {
+    const calls: number[] = [];
+    expect(
+      randomIntExclusive(maxExclusive, feed([bound, bound + 3, bound + 5, 5], calls)),
+    ).toBe(5 % maxExclusive);
+    expect(calls).toHaveLength(4);
+  });
+
+  it('reaches every value in range and none outside it', () => {
+    const seen = new Set<number>();
+    for (let v = 0; v < 64; v += 1) seen.add(randomIntExclusive(maxExclusive, feed([v])));
+    expect([...seen].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+});
+
+describe('randomIntExclusive', () => {
+  it('stays inside the requested range and rejects impossible bounds', () => {
+    for (let i = 0; i < 100; i += 1) {
+      const value = randomIntExclusive(7);
+      expect(value).toBeGreaterThanOrEqual(0);
+      expect(value).toBeLessThan(7);
+    }
+    expect(() => randomIntExclusive(0)).toThrow();
+    expect(() => randomIntExclusive(2 ** 32 + 1)).toThrow();
   });
 });

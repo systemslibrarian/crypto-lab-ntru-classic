@@ -55,20 +55,20 @@ app.innerHTML = `
       </div>
       <aside class="cl-hero-why" aria-label="Why it matters">
         <span class="cl-hero-why-label">WHY IT MATTERS</span>
-        <p class="cl-hero-why-text">A quantum computer breaks RSA and elliptic curves but not the short-vector lattice problem NTRU rests on. This 1996 scheme is the ancestor of the post-quantum standards now hardening the internet against that future.</p>
+        <p class="cl-hero-why-text">A sufficiently large fault-tolerant quantum computer running Shor's algorithm would threaten RSA and elliptic-curve cryptography. No efficient quantum algorithm is known for the lattice problems used by NTRU; this 1996 design helped establish lattice cryptography as a post-quantum direction.</p>
       </aside>
     </header>
 
     <section class="card intro-card" id="intro" aria-labelledby="intro-h">
       <h2 id="intro-h">What is NTRU? Start here.</h2>
-      <p class="intro-lede">The public key <b>h</b> looks like random noise. The private key <b>f</b> is a secret <em>short</em> pattern. Anyone can scramble a message with <b>h</b>, but only someone who knows the short <b>f</b> can cleanly unscramble it.</p>
+      <p class="intro-lede">The public key <b>h</b> looks like random noise. The private key <b>f</b> is a secret <em>short</em> pattern. The public algorithm scrambles a message with <b>h</b>; possession of <b>f</b> supplies the trapdoor that cleanly reverses the operation.</p>
       <p>That one sentence is the whole idea. Everything below earns the algebra behind it, one step at a time:</p>
       <ol class="intro-map">
         <li><b>Exhibit 1</b> builds the keypair — you will meet the short secret <b>f</b> and the noisy public <b>h</b>, and see why they look so different.</li>
         <li><b>Exhibit 2</b> encrypts and decrypts, revealing each equation only once the things it talks about are on screen.</li>
-        <li><b>Exhibit 3</b> shows the attacker's view: <em>breaking NTRU means finding that short <b>f</b></em> hidden in a lattice — demonstrated on a real, fully worked small key.</li>
+        <li><b>Exhibit 3</b> shows one central attack route: finding an equivalent useful short vector in the public NTRU lattice — demonstrated on a fully worked small key.</li>
       </ol>
-      <p class="intro-note">Why "short" and "noise"? A lattice is an infinite grid of points. NTRU hides <b>f</b> and <b>g</b> as a <em>short</em> vector on that grid; multiplying and inverting them modulo <b>q</b> to form <b>h</b> smears them into something that looks random. Finding the short vector again is believed to be hard even for a quantum computer — that is the security.</p>
+      <p class="intro-note">Why "short" and "noise"? A lattice is an infinite grid of points. NTRU embeds <b>f</b> and <b>g</b> as a <em>short</em> vector on that grid; multiplying and inverting them modulo <b>q</b> to form <b>h</b> hides that relation inside a public polynomial. Security depends on the full construction and parameters resisting known attacks; this demo illustrates the geometry but does not establish a security level.</p>
     </section>
 
     <section class="card" id="exhibit1">
@@ -85,7 +85,7 @@ app.innerHTML = `
           <canvas id="ring-public" width="330" height="330" role="img" aria-label="Public key ring visualization"></canvas>
         </figure>
         <figure>
-          <figcaption>Private key f — short and sparse (red = ±1, censored)</figcaption>
+          <figcaption>Private key f — small coefficients (blue/pink = ±1, censored)</figcaption>
           <canvas id="ring-private" width="330" height="330" role="img" aria-label="Private key ring visualization"></canvas>
         </figure>
       </div>
@@ -96,7 +96,7 @@ app.innerHTML = `
         <span class="swatch" style="background:linear-gradient(90deg,#caa000,#fff0a8)"></span> mod-q magnitude (gold)
       </p>
       <p id="inspect-1" class="ring-inspect" role="status" aria-live="polite">Hover or move over a ring to inspect individual coefficients.</p>
-      <p class="ring-story"><b>Read the two rings side by side.</b> The private <b>f</b> is <em>short</em>: almost every coefficient is 0, with only a sprinkle of +1 (blue) and −1 (pink). That sparseness is the secret. The public <b>h = p·F<sub>q</sub>·g</b> is the same secret material multiplied and inverted modulo <b>q = 2048</b>, which spreads every coefficient across the full range 0…2047 — brighter gold means a bigger value. A big coefficient carries no meaning on its own; the smearing is exactly what hides the short pattern, so <b>h</b> leaks nothing an attacker can read directly.</p>
+      <p class="ring-story"><b>Read the two rings side by side.</b> The private <b>f</b> is <em>short</em> because every coefficient is only −1, 0, or +1; for this profile it has 143 +1s, 142 −1s, and 158 zeros, so calling it sparse would be misleading. The public <b>h = p·F<sub>q</sub>·g</b> is produced by polynomial inversion and multiplication modulo <b>q = 2048</b>, leaving residues throughout the mod-q range. Inspecting one public coefficient does not reveal a private coefficient directly; the attack problem concerns the relation across the whole polynomial.</p>
     </section>
 
     <section class="card" id="exhibit2">
@@ -108,7 +108,7 @@ app.innerHTML = `
       <input id="message-input" value="Hello, NTRU 1996!" maxlength="73" aria-describedby="message-help" />
       <p id="message-help" class="assistive">Maximum 73 bytes for this demo's N=443 encoding.</p>
       <p id="message-meta" class="assistive" role="status" aria-live="polite"></p>
-      <p class="ring-story"><b>Why ternary (base 3)?</b> NTRU sets <b>p = 3</b>, so every message coefficient is one of just three values: −1, 0, +1. Each byte (0–255) is written in balanced base-3 across 6 slots. Ternary keeps the message <em>small</em> — the same "short" property that protects the key also keeps decryption inside its safety margin (Exhibit 2, Step 4). That is why <b>p = 3</b> is not arbitrary: it is the smallest odd modulus that still lets a coefficient be signed, giving the widest possible gap before values collide mod <b>q</b>.</p>
+      <p class="ring-story"><b>Why ternary (base 3)?</b> This NTRU form sets <b>p = 3</b>, so a balanced representative uses −1, 0, and +1. The demo writes each byte (0–255) across 6 balanced-base-3 slots. Keeping message coefficients small helps keep the decryption lift inside its ±q/2 window (Exhibit 2, Step 4).</p>
 
       <h3 class="step-h">Step 2 — scramble it with the public key</h3>
       <div class="controls">
@@ -204,16 +204,16 @@ app.innerHTML = `
           <p class="assistive">Decrypt a message to populate this walkthrough with live values.</p>
         </div>
       </details>
-      <p class="warning">Decryption failures are possible: if a coefficient of <b>p·r·g + f·m</b> falls outside the ±q/2 window it wraps and the message is lost. Parameter sets are chosen to push that probability down to a negligible level, but it is never exactly zero &mdash; which is why modern lattice KEMs treat decryption failure as part of the security analysis rather than an afterthought. This demo reports mismatches explicitly.</p>
+      <p class="warning">This raw teaching construction can suffer decryption failures: if a coefficient of <b>p·r·g + f·m</b> crosses the ±q/2 window, modular wraparound can corrupt the message. This demo has no derived failure bound; its 100-trial verifier is a regression check, not a probability estimate. Later NTRU constructions use different profiles and correctness mechanisms, so their analyses must not be transferred here.</p>
     </section>
 
     <section class="card" id="exhibit3">
       <h2>Exhibit 3: The Lattice Perspective — how you would attack NTRU</h2>
-      <p class="section-lede">Recovering the private key is exactly a lattice problem: <b>breaking NTRU means finding a short vector.</b> Part A builds the geometric intuition in 2D. Part B then closes the loop with a <em>real, fully worked</em> small NTRU key — no toy geometry, an actual keypair — and lets reduction land on the secret <b>f</b>.</p>
+      <p class="section-lede">A central attack route is to recover an equivalent sufficiently short private-key vector from the public NTRU lattice; an attacker need not recover the originally sampled <b>f</b> exactly. Part A builds the geometric intuition in 2D. Part B closes the loop with a fully worked small NTRU key and lets reduction recover its short key vector.</p>
 
       <h3 class="step-h">Part A — the geometry: reducing a basis finds a short vector</h3>
       <p>Below is the honest 2D case: Gauss–Lagrange reduction, the exact analogue of LLL, computed live step by step. Watch the basis vectors (b₁, b₂) shrink onto the same fixed lattice. The lattice points never move — only the basis describing them gets shorter and more orthogonal. The determinant stays constant because every step is unimodular.</p>
-      <p>LLL is polynomial-time but coarse. BKZ is stronger and exponentially expensive in block size. The (443, 2048, 143) parameters used here come from Hoffstein, Pipher, Schanck, Silverman, Whyte &amp; Zhang, <a class="paper-link" href="https://eprint.iacr.org/2015/708" target="_blank" rel="noopener">&ldquo;Choosing Parameters for NTRUEncrypt&rdquo;</a> (ePrint 2015/708), which selects N and the weights so that the best known lattice attacks are pushed out of reach; consult that paper for the current cost estimate rather than trusting a number quoted here.</p>
+      <p>LLL is polynomial-time but coarse; BKZ is stronger and grows expensive with block size. The coefficient shapes follow the <a class="paper-link" href="https://www.ntru.org/f/hps98.pdf" target="_blank" rel="noopener">original HPS paper</a>: <b>f ∈ L(df,df−1)</b> and <b>g,r ∈ L(d,d)</b>. The demo's <b>N=443, p=3, q=2048</b> scale and the number <b>143</b> echo Table 1 of the official <a class="paper-link" href="https://www.ntru.org/f/NTRUEncrypt.zip" target="_blank" rel="noopener">first-round NTRUEncrypt supporting package</a>, but combining them with the original equations and three demo-selected weights is an educational hybrid. It does <em>not</em> implement submitted NTRU-443, and the N=443 row in <a class="paper-link" href="https://eprint.iacr.org/2015/708" target="_blank" rel="noopener">ePrint 2015/708</a> is product-form rather than this flat profile; neither source's security estimate transfers.</p>
       <div class="controls">
         <button id="lll-step" type="button" aria-controls="lattice-canvas lll-readout">Apply Reduction Step</button>
         <button id="lll-auto" type="button" aria-controls="lattice-canvas lll-readout">Auto-Reduce</button>
@@ -229,7 +229,7 @@ app.innerHTML = `
       </div>
 
       <h3 class="step-h">Part B — the bridge: this short vector <em>is</em> the NTRU key</h3>
-      <p>The full scheme lives in a 2N-dimensional lattice (2×443 = 886 dimensions), too big to draw. So here is a genuine, scaled-down NTRU key — real ternary <b>f</b> and <b>g</b>, a real polynomial inverse, a real public <b>h = p·F<sub>q</sub>·g</b> at <b>N=5, q=32</b> — with its true 10-dimensional public lattice. Press <b>Attack</b> to run real LLL on that lattice and watch the shortest vector it returns turn out to be the secret key itself.</p>
+      <p>The teaching profile's public lattice has 2N = 886 dimensions, too many to draw. Here is a genuine scaled-down NTRU key — ternary <b>f</b> and <b>g</b>, a computed polynomial inverse, and public <b>h = p·F<sub>q</sub>·g</b> at <b>N=5, q=32</b> — with its true 10-dimensional public lattice. Press <b>Attack</b> to run LLL and check whether a reduced row equals the private-key vector up to sign and cyclic rotation.</p>
       <div class="controls">
         <button id="bridge-attack" type="button" aria-controls="bridge-out">Attack (run LLL)</button>
         <button id="bridge-new" type="button" aria-controls="bridge-out">New Small Key</button>
@@ -249,29 +249,30 @@ app.innerHTML = `
           <p class="bridge-hint">Press <b>Attack</b> to run LLL and reveal what it recovers.</p>
         </div>
       </div>
-      <p class="assistive">Why does it come out rotated or negated? Any cyclic rotation of (p·g ‖ f) is an equally valid NTRU private key, so lattice reduction may land on any of them — a genuine symmetry of the scheme, not a demo shortcut. At N=443 the same lattice exists but no known algorithm finds its short vector in feasible time; that gap is NTRU's security.</p>
+      <p class="assistive">Why does it come out rotated or negated? A cyclic rotation or negation of (p·g ‖ f) preserves the short relation, so lattice reduction may return any of them — a genuine ring symmetry, not a demo shortcut. The N=443 view illustrates the same lattice structure, but this page makes no attack-cost or production-security claim for its raw profile.</p>
     </section>
 
     <section class="card" id="exhibit4">
-      <h2>Exhibit 4: NTRU Classic vs Kyber</h2>
-      <div class="table-wrap" tabindex="0" role="region" aria-label="Comparison of NTRU Classic and ML-KEM-768 (scrollable table)">
+      <h2>Exhibit 4: Raw NTRU teaching profile vs ML-KEM-768</h2>
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Comparison of the raw NTRU teaching profile and ML-KEM-768 (scrollable table)">
       <table>
-        <caption>Comparison of NTRU Classic and ML-KEM-768, with the tradeoff each row implies</caption>
-        <thead><tr><th scope="col">Property</th><th scope="col">NTRU Classic (1996)</th><th scope="col">ML-KEM-768 (2024)</th><th scope="col">Why it matters</th></tr></thead>
+        <caption>Construction-level comparison; the raw demo is not a standardized wire format or KEM</caption>
+        <thead><tr><th scope="col">Property</th><th scope="col">This raw NTRU demo</th><th scope="col">ML-KEM-768 (FIPS 203)</th><th scope="col">Why it matters</th></tr></thead>
         <tbody>
-          <tr><th scope="row">Designer(s)</th><td>Hoffstein, Pipher, Silverman</td><td>Avanzi, Bos, Ducas, Kiltz et al.</td><td class="why">NTRU came first; Kyber is a later community design that learned from it.</td></tr>
-          <tr><th scope="row">Ring</th><td>Z[X]/(X^N − 1)</td><td>Z_q[X]/(X^n + 1), n=256</td><td class="why">Kyber's X^n+1 with power-of-two n is NTT-friendly, so multiplication is O(n log n) instead of O(n²) — the main reason it is faster.</td></tr>
-          <tr><th scope="row">Parameters</th><td>N=443, q=2048</td><td>n=256, q=3329, rank 3</td><td class="why">Kyber fixes n and adds security by stacking rank-3 modules; NTRU scales one large N instead.</td></tr>
-          <tr><th scope="row">Public key size</th><td>~609 bytes</td><td>1184 bytes</td><td class="why">NTRU keys are smaller — an advantage where bandwidth is tight.</td></tr>
-          <tr><th scope="row">Ciphertext size</th><td>~609 bytes</td><td>1088 bytes</td><td class="why">Same story: NTRU ships less on the wire per message.</td></tr>
-          <tr><th scope="row">Security assumption</th><td>NTRU-specific</td><td>MLWE + MSIS</td><td class="why">Kyber reduces to well-studied worst-case lattice problems; NTRU's assumption is bespoke and less transferable.</td></tr>
-          <tr><th scope="row">Decryption failures</th><td>~2^-80</td><td>~2^-164</td><td class="why">A far smaller failure rate closes a channel attackers can exploit — a security margin, not just reliability.</td></tr>
-          <tr><th scope="row">NIST status</th><td>2020 finalist</td><td>Standardized (FIPS 203)</td><td class="why">Kyber won standardization; NTRU informs but is not the deployed KEM.</td></tr>
-          <tr><th scope="row">Patent status</th><td>Expired 2017</td><td>Patent-free</td><td class="why">Both are freely usable today — patent clarity was an early argument for Kyber.</td></tr>
+          <tr><th scope="row">Designer(s)</th><td>Hoffstein, Pipher, Silverman</td><td>Avanzi, Bos, Ducas, Kiltz et al.</td><td class="why">Both use structured lattices, but their algebra and security arguments are construction-specific.</td></tr>
+          <tr><th scope="row">Ring</th><td>Z[X]/(X^N − 1)</td><td>Z_q[X]/(X^n + 1), n=256</td><td class="why">ML-KEM's power-of-two module ring supports efficient NTT multiplication; real performance still depends on the full construction and implementation.</td></tr>
+          <tr><th scope="row">Parameters</th><td>N=443, q=2048; df=dg=dr=143 (demo choice)</td><td>n=256, q=3329, module rank 3</td><td class="why">The numbers describe different constructions and do not create comparable security levels by themselves.</td></tr>
+          <tr><th scope="row">Public key encoding</th><td>No wire format; 443×11 bits needs 610 bytes if simply packed</td><td>1184 bytes</td><td class="why">An in-memory coefficient array is not an interoperable encoding, so the demo cannot claim the submitted NTRU-443 size.</td></tr>
+          <tr><th scope="row">Ciphertext encoding</th><td>No wire format; 443×11 bits needs 610 bytes if simply packed</td><td>1088 bytes</td><td class="why">Standardized sizes include an exact byte-level format; this demo defines none.</td></tr>
+          <tr><th scope="row">Security basis</th><td>NTRU lattice structure; no level claimed here</td><td>Module-LWE-based standardized KEM</td><td class="why">A security estimate belongs to an exact construction, distribution, encoding, and implementation boundary.</td></tr>
+          <tr><th scope="row">Decryption failures</th><td>Not established for this demo</td><td>Analyzed for the standardized parameter set</td><td class="why">A 100-trial regression run cannot estimate a cryptographic failure probability.</td></tr>
+          <tr><th scope="row">NIST status</th><td>Related NTRU submission was a third-round finalist, then not selected</td><td>Standardized in FIPS 203</td><td class="why">The raw demo is neither the submission nor a NIST standard.</td></tr>
+          <tr><th scope="row">Recorded US patent history</th><td>NIST reports the NTRU US patents were dedicated to the public in 2007</td><td>Outside this demo's claim</td><td class="why">A historical US patent event is not a worldwide freedom-to-operate opinion.</td></tr>
         </tbody>
       </table>
       </div>
-      <p class="lineage">NTRU (1996) -> Ring-LWE (2010) -> Kyber / ML-KEM (2024)</p>
+      <p class="assistive">Sources: <a class="paper-link" href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener">FIPS 203</a> for ML-KEM and <a class="paper-link" href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591" target="_blank" rel="noopener">NIST IR 8413-upd1</a> for the third-round selection and NTRU patent history.</p>
+      <p class="lineage">Selected lattice-PQC milestones (not a direct derivation): NTRU (1996) → Ring-LWE (2010) → Kyber / ML-KEM (2024)</p>
     </section>
 
     <section class="card" id="exhibit5">
@@ -280,13 +281,15 @@ app.innerHTML = `
         <li>1996: NTRU invented at Brown University</li>
         <li>1997: US Patent 6,081,597 filed</li>
         <li>1998: ANTS-III publication</li>
-        <li>2009: IEEE P1363.1 standard</li>
-        <li>2011: X9.98 financial services standard</li>
-        <li>2017: Patent expires globally</li>
-        <li>2020: NTRU is a NIST PQC finalist</li>
+        <li>2008–2009: IEEE 1363.1-2008 approved and published (now inactive-reserved)</li>
+        <li>2010: ANSI X9.98-2010 financial-services standard (historical; reaffirmed 2017)</li>
+        <li>2007: NIST records the NTRU US patents as dedicated to the public</li>
+        <li>2017: NTRUEncrypt enters NIST's first-round PQC process</li>
+        <li>2020: NTRU advances as a third-round finalist</li>
+        <li>2022: NIST selects Kyber and does not select NTRU after round three</li>
         <li>2024: ML-KEM standardized as FIPS 203</li>
       </ul>
-      <p>Kyber won due to stronger reductions, NTT-friendly arithmetic, and immediate patent clarity. NTRU remains foundational for understanding lattice cryptography.</p>
+      <p>NIST's third-round report identifies NTRU key-generation performance as a significant selection factor and says there was more security evidence for structured Module-LWE. Those are documented factors, not a claim that one slogan decided the selection. The historical standards above are documented by the current <a class="paper-link" href="https://standards.ieee.org/ieee/4/3074/" target="_blank" rel="noopener">IEEE 1363.1-2008 record</a> and <a class="paper-link" href="https://webstore.ansi.org/standards/ascx9/ANSIX9982010" target="_blank" rel="noopener">ANSI X9.98-2010 record</a>. NTRU remains foundational for understanding lattice cryptography.</p>
       <p class="cross-links">Related labs: crypto-lab-kyber-vault, crypto-lab-dilithium-seal, crypto-lab-falcon-seal, crypto-lab-lll-break, crypto-lab-lattice-fault, crypto-lab-hybrid-wire, crypto-lab-harvest-vault.</p>
     </section>
   </main>
@@ -619,9 +622,9 @@ function walkthroughStep(titleHtml: string, detail: string): string {
   return `<li><span class="wt-title">${titleHtml}</span><span class="wt-detail">${detail}</span></li>`;
 }
 
-function renderWalkthrough(): void {
+function renderWalkthrough() {
   if (!walkthroughBodyEl || !keyPair || !ciphertext || !blindingPoly || !messagePoly) {
-    return;
+    return null;
   }
   const w = explainDecryption(ciphertext, keyPair.privateKey, {
     r: blindingPoly,
@@ -656,6 +659,7 @@ function renderWalkthrough(): void {
   ];
 
   walkthroughBodyEl.innerHTML = `<ol class="walkthrough-steps">${rows.join('')}</ol>`;
+  return w;
 }
 
 // ---- Decryption pipeline (Step 3): left-to-right flow of the real polynomials.
@@ -810,10 +814,10 @@ generateButtonEl.addEventListener('click', () => {
     });
 
     lines.unshift(
-      'Parameters: N=443, p=3, q=2048, df=143, dg=143, dr=143 ' +
-        '(the (443, 2048, 143) set from Hoffstein-Pipher-Schanck-Silverman-Whyte-Zhang, ' +
-        '"Choosing Parameters for NTRUEncrypt", ePrint 2015/708 - not EESS#1 ees443ep1, ' +
-        'which is product-form)',
+      'Teaching profile: N=443, p=3, q=2048, df=dg=dr=143; ' +
+        'f in L(143,142), g and r in L(143,143), following the original HPS coefficient shapes. ' +
+        'The N=443 scale and numeral 143 echo official first-round NTRU-443, but this hybrid ' +
+        'demo is not ntru-pke-443 and the submitted scheme\'s security estimate does not transfer.',
     );
     if (!sawFailure) {
       lines.push('No failure in this run. Non-invertible f events are expected and appear on other runs.');
@@ -900,14 +904,21 @@ decryptButtonEl.addEventListener('click', () => {
 
     const recovered = decrypt(ciphertext, keyPair.privateKey);
     drawRing(ringRecoveredEl, recovered, 'ternary');
-    renderWalkthrough();
+    const walkthrough = renderWalkthrough();
     renderPipeline();
 
-    // Equation reveal: the identity and recovery steps have now run.
-    setEquationUnlocked('identity', true, 'verified live ✓');
-    setEquationUnlocked('recover', true, "m' recovered ✓");
-
     const diagnosis = diagnoseDecryption(messagePoly, recovered);
+    // Equation badges describe this ciphertext's observed result, not a prior run.
+    setEquationUnlocked(
+      'identity',
+      true,
+      walkthrough?.identityHolds ? 'verified live ✓' : 'identity broken ✗',
+    );
+    setEquationUnlocked(
+      'recover',
+      true,
+      diagnosis.matches ? "m' recovered ✓" : "m' mismatch ✗",
+    );
     if (diagnosis.matches) {
       const decoded = decodeMessage(recovered, originalLength);
       setStatus(decStatusEl, 'Valid decryption: m recovered exactly.', 'ok');
@@ -918,7 +929,8 @@ decryptButtonEl.addEventListener('click', () => {
         `Decryption mismatch detected: ${diagnosis.differingCoefficients}/${diagnosis.totalCoefficients} coefficients differ.`,
         'warn',
       );
-      decodeOutputEl.textContent = 'Warning: rare decryption failure or tampering event observed.';
+      decodeOutputEl.textContent =
+        'Recovery mismatch observed. This raw construction cannot authenticate whether ciphertext modification caused it.';
     }
   });
 
@@ -937,16 +949,24 @@ tamperButtonEl.addEventListener('click', () => {
 
   const recoveredTampered = decrypt(ciphertext, keyPair.privateKey);
   drawRing(ringRecoveredEl, recoveredTampered, 'ternary');
-  renderWalkthrough();
+  const walkthrough = renderWalkthrough();
   renderPipeline();
   const diagnosis = diagnoseDecryption(messagePoly, recoveredTampered);
+
+  setEquationUnlocked(
+    'identity',
+    true,
+    walkthrough?.identityHolds ? 'verified live ✓' : 'identity broken ✗',
+  );
+  setEquationUnlocked('recover', true, diagnosis.matches ? "m' recovered ✓" : "m' mismatch ✗");
 
   setStatus(
     decStatusEl,
     `Tampering demo: ${diagnosis.differingCoefficients}/${diagnosis.totalCoefficients} coefficients now differ.`,
     'warn',
   );
-  decodeOutputEl.textContent = 'This demonstrates ciphertext integrity sensitivity in lattice PKE.';
+  decodeOutputEl.textContent =
+    'Raw ciphertext corruption changed the recovered polynomial. The demo detects that only by retaining and comparing the original plaintext; this scheme has no standalone integrity or authentication check.';
 });
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1230,7 +1250,7 @@ function runBridgeAttack(): void {
     <p class="bridge-win"><b>LLL recovered the key.</b> The shortest vector in the public lattice is:</p>
     <p class="bridge-line">recovered = ( ${fmtVec(recFirst)} ‖ ${fmtVec(recSecond)} )</p>
     <p class="bridge-line bridge-key">= ( p·g ‖ f ), ${rotNote}</p>
-    <p class="bridge-hint">The right half <em>is</em> the private key <b>f</b> (up to the rotation/sign symmetry). Nothing was faked: the lattice was built only from public <b>h</b>, yet reduction handed back the secret. That is why NTRU's whole security rests on this staying hard at N=443.</p>`;
+    <p class="bridge-hint">The right half <em>is</em> the private key <b>f</b> (up to the rotation/sign symmetry). The lattice was built only from public <b>h</b>, yet reduction found a useful short private-key vector in this tiny instance. Larger constructions require a separate attack analysis; this demo does not assign one to its N=443 profile.</p>`;
   if (bridgeStateEl) {
     setStatus(bridgeStateEl, 'Attack complete: the short vector is the private key.', 'ok');
   }

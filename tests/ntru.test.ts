@@ -35,6 +35,13 @@ describe('encodeMessage / decodeMessage', () => {
     const tooLong = new Uint8Array(Math.floor(NTRU_PARAMS.N / 6) + 1);
     expect(() => encodeMessage(tooLong, NTRU_PARAMS.N)).toThrow();
   });
+
+  it('rejects malformed decode metadata and coefficients', () => {
+    expect(() => decodeMessage(new Int32Array(6), -1)).toThrow(/non-negative integer/);
+    const malformed = new Int32Array(6);
+    malformed[0] = 2;
+    expect(() => decodeMessage(malformed, 1)).toThrow(/ternary/);
+  });
 });
 
 describe('generateKeyPair', () => {
@@ -44,6 +51,14 @@ describe('generateKeyPair', () => {
     expect(kp.generationAttempts).toBeGreaterThanOrEqual(1);
     expect(kp.publicKey.length).toBe(NTRU_PARAMS.N);
     expect(kp.privateKey.f.length).toBe(NTRU_PARAMS.N);
+    expect(Array.from(kp.privateKey.f).filter((c) => c === 1)).toHaveLength(
+      NTRU_PARAMS.df,
+    );
+    expect(Array.from(kp.privateKey.f).filter((c) => c === -1)).toHaveLength(
+      NTRU_PARAMS.df - 1,
+    );
+    expect(Array.from(kp.g).filter((c) => c === 1)).toHaveLength(NTRU_PARAMS.dg);
+    expect(Array.from(kp.g).filter((c) => c === -1)).toHaveLength(NTRU_PARAMS.dg);
     expect(reasons.some((r) => r.includes('Key generation complete'))).toBe(true);
   });
 });
@@ -76,6 +91,35 @@ describe('encrypt / decrypt round-trip', () => {
     const kp = generateKeyPair();
     expect(() => encrypt(new Int32Array(10), kp.publicKey)).toThrow();
     expect(() => decrypt(new Int32Array(10), kp.privateKey)).toThrow();
+  });
+
+  it('rejects malformed coefficients at the public API boundary', () => {
+    const kp = generateKeyPair();
+    const message = new Int32Array(NTRU_PARAMS.N);
+    message[0] = 2;
+    expect(() => encrypt(message, kp.publicKey)).toThrow(/ternary/);
+
+    const publicKey = new Int32Array(kp.publicKey);
+    publicKey[0] = NTRU_PARAMS.q;
+    expect(() => encrypt(new Int32Array(NTRU_PARAMS.N), publicKey)).toThrow(/\[0, 2048\)/);
+
+    const ciphertext = new Int32Array(NTRU_PARAMS.N);
+    ciphertext[0] = -1;
+    expect(() => decrypt(ciphertext, kp.privateKey)).toThrow(/\[0, 2048\)/);
+
+    const badPrivateKey = {
+      f: new Int32Array(kp.privateKey.f),
+      F_p: new Int32Array(kp.privateKey.F_p),
+    };
+    badPrivateKey.f[0] = 9;
+    expect(() => decrypt(new Int32Array(NTRU_PARAMS.N), badPrivateKey)).toThrow(/ternary/);
+  });
+
+  it('samples the blinding polynomial from L(dr, dr)', () => {
+    const kp = generateKeyPair();
+    const { blindingPoly } = encrypt(new Int32Array(NTRU_PARAMS.N), kp.publicKey);
+    expect(Array.from(blindingPoly).filter((c) => c === 1)).toHaveLength(NTRU_PARAMS.dr);
+    expect(Array.from(blindingPoly).filter((c) => c === -1)).toHaveLength(NTRU_PARAMS.dr);
   });
 });
 

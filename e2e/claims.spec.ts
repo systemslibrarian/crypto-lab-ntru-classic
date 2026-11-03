@@ -98,10 +98,13 @@ test('keygen: the summary counts the attempts the log printed, and unlocks only 
   expect(attempts).toBeGreaterThanOrEqual(1);
 
   const log = await flat(page.locator('#keygen-log'));
-  // The parameter line is the set the README documents.
-  expect(log).toContain('Parameters: N=443, p=3, q=2048, df=143, dg=143, dr=143');
-  expect(log).toContain('ePrint 2015/708');
-  expect(log).toContain('not EESS#1 ees443ep1');
+  // The parameter line states the exact distribution and construction boundary.
+  expect(log).toContain('Teaching profile: N=443, p=3, q=2048, df=dg=dr=143');
+  expect(log).toContain('f in L(143,142), g and r in L(143,143)');
+  expect(log).toContain('original HPS coefficient shapes');
+  expect(log).toContain('echo official first-round NTRU-443');
+  expect(log).toContain('not ntru-pke-443');
+  expect(log).toContain("security estimate does not transfer");
 
   // The log's highest attempt number is the number the summary claims.
   const attemptNumbers = [...log.matchAll(/Attempt (\d+):/g)].map((m) => Number(m[1]));
@@ -123,6 +126,34 @@ test('keygen: the summary counts the attempts the log printed, and unlocks only 
     'Needs Decrypt',
     'Needs Decrypt',
   ]);
+});
+
+test('publication boundary: the page does not transfer wire sizes or security claims', async ({
+  page,
+}) => {
+  await open(page);
+
+  await expect(
+    page.locator('a[href="https://www.ntru.org/f/NTRUEncrypt.zip"]'),
+  ).toContainText('first-round NTRUEncrypt supporting package');
+  await expect(page.locator('#exhibit3')).toContainText(
+    "combining them with the original equations and three demo-selected weights is an educational hybrid",
+  );
+  await expect(page.locator('#exhibit3')).toContainText(
+    "the N=443 row in ePrint 2015/708 is product-form rather than this flat profile",
+  );
+
+  const comparison = await flat(page.locator('#exhibit4'));
+  expect(comparison).toContain('No wire format; 443×11 bits needs 610 bytes if simply packed');
+  expect(comparison).toContain('Not established for this demo');
+  expect(comparison).toContain('third-round finalist, then not selected');
+  expect(comparison).not.toContain('609 bytes');
+  expect(comparison).not.toContain('2^-80');
+  expect(comparison).not.toContain('Expired 2017');
+  const history = await flat(page.locator('#exhibit5'));
+  expect(history).toContain('IEEE 1363.1-2008 approved and published');
+  expect(history).toContain('ANSI X9.98-2010');
+  expect(history).not.toContain('2011: X9.98');
 });
 
 // ---------------------------------------------------------------------------
@@ -293,7 +324,18 @@ test('tamper: a modified ciphertext breaks the identity and is reported, and re-
   expect(Number(diff[2])).toBe(N);
   expect(Number(diff[1]), 'tampering must actually corrupt the recovery').toBeGreaterThan(0);
   expect(Number(diff[1])).toBeLessThanOrEqual(N);
-  expect(await flat(page.locator('#decode-output'))).toContain('ciphertext integrity sensitivity');
+  expect(await flat(page.locator('#decode-output'))).toContain(
+    'detects that only by retaining and comparing the original plaintext',
+  );
+  expect(await flat(page.locator('#decode-output'))).toContain(
+    'no standalone integrity or authentication check',
+  );
+  await expect(badges(page)).toHaveText([
+    'h is on screen ✓',
+    'e is on screen ✓',
+    'identity broken ✗',
+    "m' mismatch ✗",
+  ]);
 
   await page.locator('#decrypt-walkthrough').evaluate((d) => ((d as HTMLDetailsElement).open = true));
   const walk = await flat(page.locator('#walkthrough-body'));

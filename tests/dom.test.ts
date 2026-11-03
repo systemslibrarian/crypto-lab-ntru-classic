@@ -43,6 +43,18 @@ describe('UI boot', () => {
     const readout = document.querySelector('#lll-readout');
     expect(readout?.textContent).toContain('Step 0');
   });
+
+  it('states the hybrid parameter boundary and links both primary sources', () => {
+    const exhibit = document.querySelector('#exhibit3');
+    expect(exhibit?.textContent).toContain('three demo-selected weights is an educational hybrid');
+    expect(
+      exhibit?.querySelector('a[href="https://www.ntru.org/f/hps98.pdf"]'),
+    ).not.toBeNull();
+    expect(
+      exhibit?.querySelector('a[href="https://www.ntru.org/f/NTRUEncrypt.zip"]'),
+    ).not.toBeNull();
+    expect(document.querySelector('#exhibit4')?.textContent).not.toContain('2^-80');
+  });
 });
 
 describe('generate → encrypt → decrypt flow', () => {
@@ -68,6 +80,26 @@ describe('generate → encrypt → decrypt flow', () => {
     const body = document.querySelector('#walkthrough-body');
     expect(body?.querySelector('.katex')).not.toBeNull();
     expect(body?.textContent).toMatch(/holds exactly/);
+  });
+
+  it('retracts the honest verdict after corruption and disclaims authentication', () => {
+    const click = (id: string) => (document.querySelector(id) as HTMLButtonElement).click();
+    click('#tamper-ciphertext');
+
+    const badges = Array.from(document.querySelectorAll('.eq-badge'), (badge) => badge.textContent);
+    expect(badges).toEqual([
+      'h is on screen ✓',
+      'e is on screen ✓',
+      'identity broken ✗',
+      "m' mismatch ✗",
+    ]);
+    expect(document.querySelector('#decode-output')?.textContent).toContain(
+      'no standalone integrity or authentication check',
+    );
+
+    // Restore the honest state for any later interaction tests in this module.
+    click('#encrypt-message');
+    click('#decrypt-message');
   });
 });
 
