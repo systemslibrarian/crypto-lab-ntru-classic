@@ -267,11 +267,11 @@ app.innerHTML = `
           <tr><th scope="row">Security basis</th><td>NTRU lattice structure; no level claimed here</td><td>Module-LWE-based standardized KEM</td><td class="why">A security estimate belongs to an exact construction, distribution, encoding, and implementation boundary.</td></tr>
           <tr><th scope="row">Decryption failures</th><td>Not established for this demo</td><td>Analyzed for the standardized parameter set</td><td class="why">A 100-trial regression run cannot estimate a cryptographic failure probability.</td></tr>
           <tr><th scope="row">NIST status</th><td>Related NTRU submission was a third-round finalist, then not selected</td><td>Standardized in FIPS 203</td><td class="why">The raw demo is neither the submission nor a NIST standard.</td></tr>
-          <tr><th scope="row">Recorded US patent history</th><td>NIST reports the NTRU US patents were dedicated to the public in 2007</td><td>Outside this demo's claim</td><td class="why">A historical US patent event is not a worldwide freedom-to-operate opinion.</td></tr>
+          <tr><th scope="row">Recorded US patent history</th><td>Security Innovation placed the NTRUEncrypt patents in the public domain in March 2017</td><td>Outside this demo's claim</td><td class="why">A historical US patent event is not a worldwide freedom-to-operate opinion.</td></tr>
         </tbody>
       </table>
       </div>
-      <p class="assistive">Sources: <a class="paper-link" href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener">FIPS 203</a> for ML-KEM and <a class="paper-link" href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591" target="_blank" rel="noopener">NIST IR 8413-upd1</a> for the third-round selection and NTRU patent history.</p>
+      <p class="assistive">Sources: <a class="paper-link" href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener">FIPS 203</a> for ML-KEM, <a class="paper-link" href="https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591" target="_blank" rel="noopener">NIST IR 8413-upd1</a> for the third-round selection, and the <a class="paper-link" href="https://www.globenewswire.com/news-release/2017/03/28/945815/0/en/Security-Innovation-Makes-NTRUEncrypt-Patent-Free.html" target="_blank" rel="noopener">28 March 2017 announcement</a> for the NTRUEncrypt patent dedication.</p>
       <p class="lineage">Selected lattice-PQC milestones (not a direct derivation): NTRU (1996) → Ring-LWE (2010) → Kyber / ML-KEM (2024)</p>
     </section>
 
@@ -283,7 +283,7 @@ app.innerHTML = `
         <li>1998: ANTS-III publication</li>
         <li>2008–2009: IEEE 1363.1-2008 approved and published (now inactive-reserved)</li>
         <li>2010: ANSI X9.98-2010 financial-services standard (historical; reaffirmed 2017)</li>
-        <li>2007: NIST records the NTRU US patents as dedicated to the public</li>
+        <li>2017: Security Innovation places the NTRUEncrypt patents in the public domain on 28 March (NIST IR 8413-upd1 cites that release but misprints the year as 2007)</li>
         <li>2017: NTRUEncrypt enters NIST's first-round PQC process</li>
         <li>2020: NTRU advances as a third-round finalist</li>
         <li>2022: NIST selects Kyber and does not select NTRU after round three</li>

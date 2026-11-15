@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased - 2026-11-15
+
+### Fixed
+- **Sources reviewed 15 November 2026.** Corrected the patent-dedication year from 2007 to 2017 in the Real-World Usage timeline, the Exhibit 4 comparison row, and the Exhibit 5 timeline. Security Innovation's OnBoard Security division placed all NTRUEncrypt patents in the public domain under CC0 1.0, announced 28 March 2017 (US 6,081,597, 6,298,137, 6,959,085, 7,031,468); the companion pqNTRUsign patents were not included. NIST IR 8413-upd1 is the source the page had copied, and its footnote on printed p. 18 does read "dedicated to the public in 2007" — but its only citation for that sentence, reference [113], is the 28 March 2017 release, so the 2007 in the NIST report is a misprint. The page now gives 2017, links the release alongside the NIST report, and names the misprint so a reader who checks the report is not confused. Two claims assertions pin the corrected year.
+
 ## Unreleased - 2026-10-23
 
 ### Fixed

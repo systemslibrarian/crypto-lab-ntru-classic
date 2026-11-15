@@ -58,13 +58,13 @@ The demo runs its raw NTRU teaching flow in the browser: watch probabilistic key
 
 - NTRU was introduced in 1996 by Jeffrey Hoffstein, Jill Pipher, and Joseph Silverman at Brown University.
 - 1996–1998: invention, CRYPTO rump-session presentation, and ANTS-III publication.
-- 2007: NIST's third-round report records the NTRU US patents as dedicated to the public.
 - 2008–2009: [IEEE 1363.1-2008](https://standards.ieee.org/ieee/4/3074/) was approved and published; IEEE now lists it as inactive-reserved.
 - 2010: [ANSI X9.98-2010](https://webstore.ansi.org/standards/ascx9/ANSIX9982010) specified lattice-based polynomial public-key establishment for financial services; the store lists it as historical and reaffirmed in 2017.
+- 2017: Security Innovation's OnBoard Security division [placed all NTRUEncrypt patents in the public domain](https://www.globenewswire.com/news-release/2017/03/28/945815/0/en/Security-Innovation-Makes-NTRUEncrypt-Patent-Free.html) under CC0 1.0, announced 28 March 2017 and naming US 6,081,597, 6,298,137, 6,959,085, and 7,031,468. The companion pqNTRUsign patents were not included. NIST IR 8413-upd1 cites that release but misprints the year as 2007.
 - 2017–2022: NTRU entered the NIST PQC process, advanced as a third-round finalist, and was not selected after round three. NIST identified key-generation performance as a significant selection factor and noted more security evidence for structured Module-LWE.
 - 2024: ML-KEM (Kyber) standardized as FIPS 203. NTRU remains historically foundational and pedagogically important for understanding modern lattice cryptography.
 
-See [NIST IR 8413-upd1](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591) for the selection and patent-history statements, and [FIPS 203](https://csrc.nist.gov/pubs/fips/203/final) for ML-KEM.
+See [NIST IR 8413-upd1](https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=935591) for the selection statements and its own patent footnote, the [28 March 2017 announcement](https://www.globenewswire.com/news-release/2017/03/28/945815/0/en/Security-Innovation-Makes-NTRUEncrypt-Patent-Free.html) that report cites as its reference [113] for the dedication itself, and [FIPS 203](https://csrc.nist.gov/pubs/fips/203/final) for ML-KEM.
 
 ## How to Run Locally
 

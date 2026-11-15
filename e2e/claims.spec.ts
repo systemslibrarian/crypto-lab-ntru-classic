@@ -150,10 +150,14 @@ test('publication boundary: the page does not transfer wire sizes or security cl
   expect(comparison).not.toContain('609 bytes');
   expect(comparison).not.toContain('2^-80');
   expect(comparison).not.toContain('Expired 2017');
+  expect(comparison).toContain('public domain in March 2017');
+  expect(comparison).not.toContain('dedicated to the public in 2007');
   const history = await flat(page.locator('#exhibit5'));
   expect(history).toContain('IEEE 1363.1-2008 approved and published');
   expect(history).toContain('ANSI X9.98-2010');
   expect(history).not.toContain('2011: X9.98');
+  expect(history).toContain('public domain on 28 March');
+  expect(history).not.toContain('2007: NIST records');
 });
 
 // ---------------------------------------------------------------------------
