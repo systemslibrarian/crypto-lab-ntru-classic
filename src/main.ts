@@ -173,7 +173,7 @@ app.innerHTML = `
       <p class="assistive">The third line is the identity that makes decryption work: reduced mod p the p·r·g term vanishes, leaving f·m, which F<sub>p</sub> inverts back to m.</p>
 
       <h3 class="step-h">Step 3 — watch decryption peel the layers off</h3>
-      <p class="assistive">The pipeline below animates the real recovered polynomials left to right. The <b>danger zone</b> band marks ±q/2: a coefficient that crosses it wraps mod q and corrupts the message. Decrypt to populate it.</p>
+      <p class="assistive">The pipeline below animates the real recovered polynomials left to right. The red bands mark centered values near ±q/2. The walkthrough uses the saved inputs to count coefficients that actually wrapped. Decrypt to populate it.</p>
       <div class="pipeline" id="dec-pipeline" role="group" aria-label="Decryption pipeline: e to a to mod p to recovered message">
         <figure class="pipe-cell">
           <figcaption>e — ciphertext</figcaption>
@@ -181,8 +181,8 @@ app.innerHTML = `
         </figure>
         <span class="pipe-arrow" aria-hidden="true"><span class="pipe-op">× f</span>→</span>
         <figure class="pipe-cell pipe-cell-wide">
-          <figcaption>a = ⟨f·e⟩ — lifted, with ±q/2 danger zone</figcaption>
-          <canvas id="pipe-a" width="300" height="150" role="img" aria-label="Lifted polynomial coefficients with wraparound danger zone"></canvas>
+          <figcaption>a = ⟨f·e⟩ — centered coefficients and window edges</figcaption>
+          <canvas id="pipe-a" width="886" height="150" role="img" aria-label="All 443 centered polynomial coefficients with the edges of the centering interval marked"></canvas>
           <span class="pipe-margin" id="pipe-margin" role="status" aria-live="polite"></span>
         </figure>
         <span class="pipe-arrow" aria-hidden="true"><span class="pipe-op">mod p</span>→</span>
@@ -330,7 +330,7 @@ function lockAllEquations(): void {
 }
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
 
 const keyLog = document.querySelector<HTMLPreElement>('#keygen-log');
 const keySummary = document.querySelector<HTMLSpanElement>('#keygen-summary');
@@ -644,12 +644,18 @@ function renderWalkthrough() {
     walkthroughStep(
       `Identity check: ${tex('a \\stackrel{?}{=} \\langle p\\,r\\,g + f\\,m \\rangle \\bmod q')}`,
       w.identityHolds
-        ? 'holds exactly — a = p·r·g + f·m ✓'
+        ? 'holds modulo q ✓'
         : 'mismatch — ciphertext was altered, identity broken ✗',
     ),
     walkthroughStep(
-      'Decryption margin before a coefficient wraps mod q',
-      `${w.decryptionMargin} of ${half}  ·  smaller margin ⇒ higher failure risk`,
+      'Distance of the centered values to ±q/2',
+      `${w.decryptionMargin} of ${half}  ·  measured after centering`,
+    ),
+    walkthroughStep(
+      'Wrap in the original integer coefficients',
+      w.identityHolds
+        ? `${w.wrappedWitnessCoefficients} of ${NTRU_PARAMS.N} outside (−${half}, ${half}] before reduction mod q.`
+        : 'The saved inputs describe the original encryption. The current ciphertext differs.',
     ),
     walkthroughStep(
       `Strip the ${tex('p\\,r\\,g')} term: ${tex('b = a \\bmod p')}`,
@@ -707,8 +713,7 @@ function drawMiniRing(canvas: HTMLCanvasElement, poly: Polynomial, mode: RingMod
 
 /**
  * Draw the lifted polynomial a = ⟨f·e⟩ as a coefficient bar chart with the
- * ±q/2 wraparound "danger zone" bands. Bars that approach the band are the ones
- * closest to a decryption failure — the margin readout made visual.
+ * edges of the centering interval. The chart shows values after reduction.
  */
 function drawLiftBars(canvas: HTMLCanvasElement, a: Polynomial): void {
   const ctx = clearCanvas(canvas);
@@ -723,19 +728,19 @@ function drawLiftBars(canvas: HTMLCanvasElement, a: Polynomial): void {
 
   // Danger-zone bands near ±q/2 (top and bottom ~12% of range).
   const dangerFrac = 0.12;
-  const dangerPx = half * dangerFrac * scale;
+  const bandTop = mid - half * (1 - dangerFrac) * scale;
   ctx.fillStyle = 'rgba(255, 51, 102, 0.22)';
-  ctx.fillRect(0, 0, w, dangerPx);
-  ctx.fillRect(0, h - dangerPx, w, dangerPx);
+  ctx.fillRect(0, 0, w, bandTop);
+  ctx.fillRect(0, h - bandTop, w, bandTop);
   // Threshold lines at ±q/2 boundary of the safe region.
   ctx.strokeStyle = '#ff5c7a';
   ctx.setLineDash([4, 3]);
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, dangerPx);
-  ctx.lineTo(w, dangerPx);
-  ctx.moveTo(0, h - dangerPx);
-  ctx.lineTo(w, h - dangerPx);
+  ctx.moveTo(0, bandTop);
+  ctx.lineTo(w, bandTop);
+  ctx.moveTo(0, h - bandTop);
+  ctx.lineTo(w, h - bandTop);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -747,7 +752,7 @@ function drawLiftBars(canvas: HTMLCanvasElement, a: Polynomial): void {
   ctx.stroke();
 
   const n = a.length;
-  const barW = Math.max(1, w / n);
+  const barW = w / n;
   let maxMag = 0;
   for (let i = 0; i < n; i += 1) {
     const v = centerCoeff(a[i], NTRU_PARAMS.q);
@@ -758,12 +763,12 @@ function drawLiftBars(canvas: HTMLCanvasElement, a: Polynomial): void {
     const barH = v * scale;
     const inDanger = Math.abs(v) >= half * (1 - dangerFrac);
     ctx.fillStyle = inDanger ? '#ff3366' : '#35d6bb';
-    ctx.fillRect(x, mid - barH, Math.max(0.7, barW - 0.4), barH === 0 ? 1 : barH);
+    ctx.fillRect(x, mid - barH, barW * 0.8, barH === 0 ? 1 : barH);
   }
 
   if (pipeMargin) {
     const margin = Math.floor(half) - maxMag;
-    pipeMargin.textContent = `largest |coeff| = ${maxMag} · margin to wrap = ${margin} of ${Math.floor(half)}`;
+    pipeMargin.textContent = `largest |coeff| = ${maxMag} · distance to ±q/2 = ${margin} of ${Math.floor(half)}`;
   }
 }
 

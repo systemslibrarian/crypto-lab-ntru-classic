@@ -133,6 +133,35 @@ describe('diagnoseDecryption / tamper sensitivity', () => {
     expect(d.totalCoefficients).toBe(4);
   });
 
+  it('counts integer wrap separately from modular agreement at both centering ties', () => {
+    // Arithmetic fixtures isolate the centered endpoints and one step beyond each.
+    const { N, q } = NTRU_PARAMS;
+    const unit = new Int32Array(N);
+    unit[0] = 1;
+    const r = new Int32Array(N).fill(1);
+    for (const sign of [-1, 1]) {
+      const g = new Int32Array(N).fill(sign, 0, 341);
+      const m = new Int32Array(N);
+      m[0] = sign;
+      const base = 3 * 341 * sign;
+      const e = new Int32Array(N).fill(modPos(base, q));
+      e[0] = modPos(base + sign, q);
+      const result = explainDecryption(e, { f: unit, F_p: unit }, { r, g, m });
+      expect(result.identityHolds).toBe(true);
+      expect(result.a[0]).toBe(1024);
+      expect(result.wrappedWitnessCoefficients).toBe(sign === -1 ? 1 : 0);
+
+      // 342 times 3 is 1026. All coefficients are outside the window.
+      g[341] = sign;
+      e.fill(modPos(1026 * sign, q));
+      e[0] = modPos(1027 * sign, q);
+      const outside = explainDecryption(e, { f: unit, F_p: unit }, { r, g, m });
+      expect(outside.identityHolds).toBe(true);
+      expect(outside.decryptionMargin).toBeGreaterThan(0);
+      expect(outside.wrappedWitnessCoefficients).toBe(N);
+    }
+  });
+
   it('confirms the identity f·e ≡ p·r·g + f·m (mod q) on a real round-trip', () => {
     const kp = generateKeyPair();
     const m = randomTernary(NTRU_PARAMS.N, 80, 80);

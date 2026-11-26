@@ -79,7 +79,7 @@ describe('generate → encrypt → decrypt flow', () => {
   it('populates the decryption walkthrough with a confirmed identity', () => {
     const body = document.querySelector('#walkthrough-body');
     expect(body?.querySelector('.katex')).not.toBeNull();
-    expect(body?.textContent).toMatch(/holds exactly/);
+    expect(body?.textContent).toMatch(/holds modulo q/);
   });
 
   it('retracts the honest verdict after corruption and disclaims authentication', () => {

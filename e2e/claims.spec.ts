@@ -213,6 +213,16 @@ test('encode: the byte budget and the coefficient counts add up to N', async ({ 
   expect(counts.plus + counts.minus).toBeLessThanOrEqual(byteLength * 6);
 });
 
+test('the recovered text preserves a leading U+FEFF and boundary spaces', async ({ page }) => {
+  const message = '\uFEFF  Café 🔐  ';
+  await open(page);
+  await generateKeypair(page);
+  await page.locator('#message-input').fill(message);
+  await encrypt(page);
+  await decrypt(page);
+  expect(await page.locator('#decode-output').textContent()).toBe(`Recovered text: ${message}`);
+});
+
 test('decrypt: the message round-trips and the walkthrough agrees with the pipeline', async ({
   page,
 }) => {
@@ -249,12 +259,13 @@ test('decrypt: the message round-trips and the walkthrough agrees with the pipel
   const walk = await flat(page.locator('#walkthrough-body'));
 
   // The identity that makes decryption work must be checked, not asserted.
-  expect(walk).toContain('holds exactly — a = p·r·g + f·m ✓');
+  expect(walk).toContain('holds modulo q ✓');
+  expect(walk).toContain('0 of 443 outside (−1024, 1024] before reduction mod q.');
   expect(walk).not.toContain('identity broken');
 
   const lift = Number(grab(walk, /max \|coefficient\| = (\d+) · window is ±(\d+)/)[1]);
   const window = Number(grab(walk, /max \|coefficient\| = \d+ · window is ±(\d+)/)[1]);
-  const margin = Number(grab(walk, /(\d+) of (\d+) · smaller margin/)[1]);
+  const margin = Number(grab(walk, /(\d+) of (\d+) · measured after centering/)[1]);
   expect(window).toBe(HALF_Q);
   // Margin is what is left of the ±q/2 window: the parts sum to the whole.
   expect(lift + margin).toBe(HALF_Q);
@@ -263,7 +274,7 @@ test('decrypt: the message round-trips and the walkthrough agrees with the pipel
   // The pipeline readout must report the same two numbers.
   const pipe = grab(
     await flat(page.locator('#pipe-margin')),
-    /largest \|coeff\| = (\d+) · margin to wrap = (\d+) of (\d+)/,
+    /largest \|coeff\| = (\d+) · distance to ±q\/2 = (\d+) of (\d+)/,
   );
   expect(Number(pipe[1])).toBe(lift);
   expect(Number(pipe[2])).toBe(margin);
@@ -363,9 +374,10 @@ test('tamper: a modified ciphertext breaks the identity and is reported, and re-
   const walk = await flat(page.locator('#walkthrough-body'));
   // The failure is diagnosed by the identity check, and the margin collapses.
   expect(walk).toContain('mismatch — ciphertext was altered, identity broken ✗');
-  expect(walk).not.toContain('holds exactly');
+  expect(walk).not.toContain('holds modulo q');
+  expect(walk).toContain('The saved inputs describe the original encryption.');
   const lift = Number(grab(walk, /max \|coefficient\| = (\d+) · window is ±\d+/)[1]);
-  const margin = Number(grab(walk, /(\d+) of \d+ · smaller margin/)[1]);
+  const margin = Number(grab(walk, /(\d+) of \d+ · measured after centering/)[1]);
   expect(lift + margin).toBe(HALF_Q);
   // The tampered lift is pushed to the edge of the ±q/2 window, far past the
   // headroom the honest ciphertext had.

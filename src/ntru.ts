@@ -3,6 +3,7 @@ import {
   NTRU_PARAMS,
   add,
   centerReduce,
+  cyclicConvolution,
   modPos,
   multiply,
   randomTernary,
@@ -276,7 +277,9 @@ export interface DecryptionWalkthrough {
   identityHolds: boolean;
   /** Largest |coefficient| of a after centering. */
   maxLiftCoeff: number;
-  /** q/2 − maxLiftCoeff: headroom before a coefficient would wrap mod q. */
+  /** Counts wrap in the integer witness p·r·g + f·m, before reduction mod q. */
+  wrappedWitnessCoefficients: number;
+  /** Distance of the centered display to ±q/2. This alone cannot detect wrap. */
   decryptionMargin: number;
   /** a reduced mod p (balanced) — strips the p·r·g term. */
   aModP: Polynomial;
@@ -287,8 +290,8 @@ export interface DecryptionWalkthrough {
 /**
  * Reproduce the decryption steps while also computing the right-hand side of
  * the identity f·e ≡ p·r·g + f·m (mod q), so the UI can show that the lift the
- * receiver computes is exactly what the algebra predicts — and how much margin
- * separated this ciphertext from modular wraparound.
+ * receiver computes is exactly what the algebra predicts modulo q. The saved witness also allows an
+ * independent count of integer coefficients outside the centering interval.
  */
 export function explainDecryption(
   e: Polynomial,
@@ -309,13 +312,18 @@ export function explainDecryption(
 
   const a = centerReduce(multiply(f, e, NTRU_PARAMS.q), NTRU_PARAMS.q);
 
-  const prg = scalePoly(multiply(r, g, NTRU_PARAMS.q), NTRU_PARAMS.p, NTRU_PARAMS.q);
-  const fm = multiply(f, m, NTRU_PARAMS.q);
-  const expectedLift = centerReduce(add(prg, fm, NTRU_PARAMS.q), NTRU_PARAMS.q);
+  const rg = cyclicConvolution(r, g);
+  const fm = cyclicConvolution(f, m);
+  const integerWitness = Int32Array.from(rg, (coefficient, i) => NTRU_PARAMS.p * coefficient + fm[i]);
+  const expectedLift = centerReduce(integerWitness, NTRU_PARAMS.q);
 
   let identityHolds = true;
+  let wrappedWitnessCoefficients = 0;
   let maxLiftCoeff = 0;
   for (let i = 0; i < a.length; i += 1) {
+    if (integerWitness[i] !== expectedLift[i]) {
+      wrappedWitnessCoefficients += 1;
+    }
     if (a[i] !== expectedLift[i]) {
       identityHolds = false;
     }
@@ -333,6 +341,7 @@ export function explainDecryption(
     expectedLift,
     identityHolds,
     maxLiftCoeff,
+    wrappedWitnessCoefficients,
     decryptionMargin: Math.floor(NTRU_PARAMS.q / 2) - maxLiftCoeff,
     aModP,
     recovered,

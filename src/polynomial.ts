@@ -39,7 +39,7 @@ export function modPos(a: number, m: number): number {
   return r === 0 ? 0 : r;
 }
 
-/** Center-reduce: coefficients into [-m/2, m/2]. */
+/** Center-reduce into (-m/2, m/2], keeping the positive tie for even m. */
 export function centerReduce(p: Polynomial, m: number): Polynomial {
   const out = new Int32Array(p.length);
   const half = m / 2;
@@ -62,10 +62,10 @@ export function reduceMod(p: Polynomial, m: number): Polynomial {
 }
 
 /**
- * Convolution in R = Z[X]/(X^N - 1), reduced mod m.
+ * Convolution in R = Z[X]/(X^N - 1), before coefficient reduction.
  * (a * b)[k] = Σᵢ a[i] · b[(k-i) mod N]
  */
-export function multiply(a: Polynomial, b: Polynomial, m: number): Polynomial {
+export function cyclicConvolution(a: Polynomial, b: Polynomial): Float64Array {
   if (a.length !== b.length) {
     throw new Error('Polynomial length mismatch');
   }
@@ -91,8 +91,13 @@ export function multiply(a: Polynomial, b: Polynomial, m: number): Polynomial {
     }
   }
 
-  const out = new Int32Array(n);
-  for (let i = 0; i < n; i += 1) {
+  return accum;
+}
+
+export function multiply(a: Polynomial, b: Polynomial, m: number): Polynomial {
+  const accum = cyclicConvolution(a, b);
+  const out = new Int32Array(accum.length);
+  for (let i = 0; i < accum.length; i += 1) {
     out[i] = modPos(accum[i], m);
   }
 
