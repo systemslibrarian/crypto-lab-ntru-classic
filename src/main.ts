@@ -422,6 +422,9 @@ messageInputEl.addEventListener('input', () => {
   } else {
     messageInputEl.removeAttribute('aria-invalid');
   }
+  if (ciphertext || messagePoly || blindingPoly) {
+    retireMessageEvidence();
+  }
 });
 
 type RingMode = 'ternary' | 'cipher' | 'public' | 'private';
@@ -797,6 +800,32 @@ function clearPipeline(): void {
   }
   if (pipeMargin) {
     pipeMargin.textContent = '';
+  }
+}
+
+function retireMessageEvidence(): void {
+  ciphertext = null;
+  messagePoly = null;
+  blindingPoly = null;
+  originalLength = 0;
+  decryptButtonEl.disabled = true;
+  tamperButtonEl.disabled = true;
+  setStatus(
+    encStatusEl,
+    'Message changed. Previous ciphertext and recovery retired. Encrypt again.',
+    'neutral',
+  );
+  setStatus(decStatusEl, 'No result for the current message.', 'neutral');
+  decodeOutputEl.textContent = '';
+  resetWalkthrough();
+  clearPipeline();
+  clearCanvas(ringMessageEl);
+  clearCanvas(ringBlindEl);
+  clearCanvas(ringCipherEl);
+  clearCanvas(ringRecoveredEl);
+  lockAllEquations();
+  if (keyPair) {
+    setEquationUnlocked('h', true, 'h is on screen ✓');
   }
 }
 

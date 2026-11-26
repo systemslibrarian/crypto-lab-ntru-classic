@@ -283,6 +283,24 @@ test('decrypt: the message round-trips and the walkthrough agrees with the pipel
   // equation badges, the walkthrough and the pipeline margin — rather than
   // leaving last run's "verified live" beside a ciphertext it never saw.
   await page.locator('#message-input').fill('a different plaintext');
+  await expect(page.locator('#enc-status')).toHaveText(
+    'Message changed. Previous ciphertext and recovery retired. Encrypt again.',
+  );
+  await expect(page.locator('#dec-status')).toHaveText('No result for the current message.');
+  await expect(page.locator('#decrypt-message')).toBeDisabled();
+  await expect(page.locator('#tamper-ciphertext')).toBeDisabled();
+  await expect(page.locator('#decode-output')).toHaveText('');
+  await expect(badges(page)).toHaveText([
+    'h is on screen ✓',
+    'Needs Encrypt',
+    'Needs Decrypt',
+    'Needs Decrypt',
+  ]);
+  await expect(page.locator('#walkthrough-body')).toHaveText(
+    'Decrypt a message to populate this walkthrough with live values.',
+  );
+  await expect(page.locator('#pipe-margin')).toHaveText('');
+
   await encrypt(page);
   await expect(page.locator('#dec-status')).toHaveText('Ciphertext ready. Click decrypt.');
   await expect(page.locator('#dec-status')).toHaveClass(/status neutral/);
